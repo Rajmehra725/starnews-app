@@ -1,6 +1,9 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Dimensions } from "react-native";
 import { WebView } from "react-native-webview";
+
+const { width } = Dimensions.get("window");
+const CARD_WIDTH = (width - 30) / 2; // 👈 responsive 2 column
 
 export default function AstroWeatherSection() {
   return (
@@ -9,7 +12,7 @@ export default function AstroWeatherSection() {
       {/* HEADING */}
       <View style={styles.headingBox}>
         <Text style={styles.heading}>
-          राशिफल और पंचांग & मौसम
+          राशिफल • पंचांग • मौसम
         </Text>
       </View>
 
@@ -39,12 +42,12 @@ export default function AstroWeatherSection() {
         </View>
 
         {/* WEATHER */}
-        <View style={styles.cardWeather}>
+        <View style={styles.card}>
           <WebView
             source={{
               uri: "https://api.wo-cloud.com/content/widget/?geoObjectKey=16143051&language=en&region=IN&timeFormat=HH:mm&windUnit=kmh&systemOfMeasurement=metric&temperatureUnit=celsius",
             }}
-            style={styles.webviewWeather}
+            style={styles.webview}
             scrollEnabled={false}
           />
         </View>
@@ -54,55 +57,46 @@ export default function AstroWeatherSection() {
     </ScrollView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "#f9fafb",
     padding: 10,
   },
 
   headingBox: {
     borderLeftWidth: 4,
-    borderLeftColor: "#2563eb",
+    borderLeftColor: "#dc2626",
     paddingLeft: 10,
-    marginBottom: 15,
+    marginBottom: 12,
   },
 
   heading: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#111827",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
   },
 
+  /* 🔥 GRID */
   grid: {
-    flexDirection: "column",
-    gap: 15,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
 
+  /* 🟦 CARD */
   card: {
-    height: 300,
+    width: CARD_WIDTH,
+    height: 200, // 👈 compact
     backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: 10,
     overflow: "hidden",
-    elevation: 3,
-  },
-
-  cardWeather: {
-    height: 320,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 3,
+    marginBottom: 10,
+    elevation: 2,
   },
 
   webview: {
     flex: 1,
-  },
-
-  webviewWeather: {
-    width: 300,
-    height: 320,
   },
 });

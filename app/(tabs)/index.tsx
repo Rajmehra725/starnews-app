@@ -1,56 +1,51 @@
-import { View, StyleSheet, FlatList, Text } from "react-native";
+import { View, StyleSheet, FlatList, Text, StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import BreakingTicker from "@/components/BreakingTicker";
 import BannerSlider from "@/components/BannerSlider";
 import NewsList from "@/components/NewsList";
-import panchang from "@/components/panchang"
+
 export default function Home() {
   return (
     <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="light-content" backgroundColor="#dc2626" />
 
       <FlatList
         data={[{ key: "main" }]}
         keyExtractor={(item) => item.key}
-
         showsVerticalScrollIndicator={false}
 
         ListHeaderComponent={
           <View>
 
-            {/* 🔥 APP HEADER */}
+            {/* 🔴 HEADER */}
             <View style={styles.header}>
               <Text style={styles.logo}>STAR NEWS</Text>
 
-              <View style={styles.liveBox}>
+              <View style={styles.live}>
                 <View style={styles.dot} />
                 <Text style={styles.liveText}>LIVE</Text>
               </View>
             </View>
 
-            <Text style={styles.tagline}>
-              Breaking • Trusted • Fast Updates ⚡
-            </Text>
-
-            {/* 🔴 Breaking */}
-            <View style={styles.section}>
+            {/* 🔥 BREAKING (No Gap) */}
+            <View style={styles.breakingWrap}>
               <BreakingTicker />
             </View>
 
-            {/* 📢 Banner */}
+            {/* 📢 BANNER */}
             <View style={styles.banner}>
               <BannerSlider />
             </View>
 
-            {/* 📰 Section Title */}
-            <Text style={styles.title}>📰 Top Headlines</Text>
+            {/* 📰 TITLE */}
+            <Text style={styles.title}>Top Headlines</Text>
 
           </View>
         }
 
         renderItem={() => <NewsList />}
       />
-
     </SafeAreaView>
   );
 }
@@ -58,69 +53,67 @@ export default function Home() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#0f172a",
+    backgroundColor: "#ffffff",
   },
 
+  /* 🔴 HEADER (AajTak Style) */
   header: {
-    paddingHorizontal: 15,
-    paddingTop: 10,
+    height: 46,
+    paddingHorizontal: 10,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    backgroundColor: "#dc2626",
   },
 
   logo: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: "#38bdf8",
-    letterSpacing: 1,
+    fontSize: 17,
+    fontWeight: "bold",
+    color: "#fff",
+    letterSpacing: 0.5,
   },
 
-  liveBox: {
+  live: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#dc2626",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
+    backgroundColor: "#000",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 3,
   },
 
   dot: {
-    width: 6,
-    height: 6,
-    backgroundColor: "white",
+    width: 5,
+    height: 5,
+    backgroundColor: "#ef4444",
     borderRadius: 50,
-    marginRight: 5,
+    marginRight: 4,
   },
 
   liveText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "bold",
   },
 
-  tagline: {
-    color: "#94a3b8",
-    fontSize: 12,
-    paddingHorizontal: 15,
-    marginTop: 4,
-    marginBottom: 10,
+  /* 🔥 BREAKING STRIP */
+  breakingWrap: {
+    backgroundColor: "#111",
+    paddingVertical: 6,
   },
 
-  section: {
-    marginBottom: 10,
-  },
-
+  /* 📢 Banner */
   banner: {
-    marginVertical: 10,
+    marginVertical: 6,
   },
 
+  /* 📰 TITLE */
   title: {
-    color: "#fff",
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "bold",
-    paddingHorizontal: 15,
-    marginTop: 10,
-    marginBottom: 5,
+    color: "#000",
+    paddingHorizontal: 10,
+    marginTop: 6,
+    marginBottom: 4,
   },
 });

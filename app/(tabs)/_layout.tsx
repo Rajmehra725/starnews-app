@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -30,14 +30,15 @@ export default function TabLayout() {
         },
       }}
     >
-      {/* 🏠 Home */}
+
+      {/* 🏠 Home - Newspaper / News Feed */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? "home" : "home-outline"}
+            <MaterialCommunityIcons
+              name={focused ? "newspaper-variant" : "newspaper-variant-outline"}
               size={size}
               color={color}
             />
@@ -45,14 +46,14 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 📂 Categories */}
+      {/* 📂 Categories - Folder / Sections */}
       <Tabs.Screen
         name="categories"
         options={{
           title: 'Categories',
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? "grid" : "grid-outline"}
+            <MaterialCommunityIcons
+              name={focused ? "view-grid" : "view-grid-outline"}
               size={size}
               color={color}
             />
@@ -60,29 +61,29 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 🔍 Search */}
-      <Tabs.Screen
-        name="search"
-        options={{
-          title: 'Search',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? "search" : "search-outline"}
-              size={size}
-              color={color}
-            />
-          ),
-        }}
+      {/* 🔥 Trending - Viral / Hot News */}
+    <Tabs.Screen
+  name="trending"
+  options={{
+    title: 'Trending',
+    tabBarIcon: ({ color, size }) => (
+      <MaterialCommunityIcons
+        name="fire"
+        size={size}
+        color={color}
       />
+    ),
+  }}
+/>
 
-      {/* 📺 Live */}
+      {/* 📺 Live News */}
       <Tabs.Screen
         name="live"
         options={{
           title: 'Live',
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? "radio" : "radio-outline"}
+            <MaterialCommunityIcons
+              name={focused ? "broadcast" : "broadcast-off"}
               size={size}
               color={color}
             />
@@ -90,20 +91,36 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 👤 Profile */}
+      {/* 🔔 Notifications - Alerts */}
       <Tabs.Screen
-        name="profile"
+        name="notifications"
         options={{
-          title: 'Profile',
+          title: 'Alerts',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons
-              name={focused ? "person" : "person-outline"}
+              name={focused ? "notifications" : "notifications-outline"}
               size={size}
               color={color}
             />
           ),
         }}
       />
+
+      {/* ⚙️ Settings */}
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "settings" : "settings-outline"}
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+
     </Tabs>
   );
 }
