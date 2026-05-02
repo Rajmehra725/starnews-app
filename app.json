@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "starnews",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -18,8 +17,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "com.infosystem38.starnews"
     },
     "web": {
       "output": "static",
@@ -38,11 +36,19 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "50fe2dab-4e06-485f-92a0-f51ab31d9b55"
+      }
+    },
+    "owner": "rajmehra001"
   }
 }

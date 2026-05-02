@@ -9,7 +9,10 @@ import {
   Dimensions,
   TextInput,
   ActivityIndicator,
+  Linking,
 } from "react-native";
+
+
 import axios from "axios";
 import { useLocalSearchParams } from "expo-router";
 import { io } from "socket.io-client";
@@ -19,6 +22,15 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import Advertisement from "@/components/Advertisement";
 
 const { width } = Dimensions.get("window");
+const COLORS = {
+  primary: "#dc2626",
+  dark: "#111827",
+  light: "#f3f4f6",
+  white: "#ffffff",
+  gray: "#6b7280",
+};
+
+const scale = (size: number): number => (width / 375) * size;
 
 const API = "https://starnewsbackend.onrender.com/api/news";
 const SOCKET_URL = "https://starnewsbackend.onrender.com";
@@ -179,13 +191,54 @@ export default function NewsDetail() {
       </View>
 
       {/* SOCIAL */}
-      <View style={styles.socialRow}>
-        <Ionicons name="logo-instagram" size={22} color="#E1306C" />
-        <Ionicons name="logo-facebook" size={22} color="#1877f2" />
-        <Ionicons name="logo-youtube" size={22} color="#ff0000" />
-        <Ionicons name="logo-twitter" size={22} color="#000" />
-        <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
-      </View>
+    <View style={styles.socialRow}>
+
+  {/* Instagram */}
+  <TouchableOpacity
+    onPress={() =>
+      Linking.openURL(
+        "https://www.instagram.com/reel/DSEzE6VjA1u/?igsh=enR1OGZ0ZmN4enhz"
+      )
+    }
+  >
+    <Ionicons name="logo-instagram" size={22} color="#E1306C" />
+  </TouchableOpacity>
+
+  {/* Facebook */}
+  <TouchableOpacity
+    onPress={() =>
+      Linking.openURL("https://www.facebook.com/share/1Dj3yMqD7R/")
+    }
+  >
+    <Ionicons name="logo-facebook" size={22} color="#1877f2" />
+  </TouchableOpacity>
+
+  {/* YouTube */}
+  <TouchableOpacity
+    onPress={() =>
+      Linking.openURL(
+        "https://youtube.com/@starnewsnetworks88?si=HHAEJevcHq48Fdrh"
+      )
+    }
+  >
+    <Ionicons name="logo-youtube" size={22} color="#ff0000" />
+  </TouchableOpacity>
+
+  {/* Twitter / X */}
+  <TouchableOpacity
+    onPress={() => Linking.openURL("https://x.com/starnews88")}
+  >
+    <Ionicons name="logo-twitter" size={22} color="#000" />
+  </TouchableOpacity>
+
+  {/* WhatsApp */}
+  <TouchableOpacity
+    onPress={() => Linking.openURL("https://wa.me/917987667358")}
+  >
+    <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
+  </TouchableOpacity>
+
+</View>
 
       {/* DESCRIPTION */}
       <Text style={styles.desc}>{news.description}</Text>
@@ -272,10 +325,10 @@ export default function NewsDetail() {
 }
 
 /* 🎨 STYLES */
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: COLORS.light,
   },
 
   loader: {
@@ -284,82 +337,90 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  /* HEADER */
+  /* 🔴 HEADER */
   header: {
-    backgroundColor: "#dc2626",
-    paddingVertical: 16,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 18,
     paddingHorizontal: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    elevation: 6,
+    elevation: 10,
   },
 
   logo: {
-    color: "#fff",
-    fontSize: 22,
+    color: COLORS.white,
+    fontSize: scale(24),
     fontWeight: "900",
-    letterSpacing: 1.2,
+    letterSpacing: 2,
   },
 
   live: {
-    backgroundColor: "#fff",
-    color: "#dc2626",
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+    backgroundColor: COLORS.white,
+    color: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
     borderRadius: 50,
-    fontWeight: "bold",
-    fontSize: 12,
+    fontWeight: "900",
+    fontSize: scale(12),
   },
 
-  /* HERO IMAGE */
+  /* 🖼 HERO IMAGE */
   image: {
     width: "100%",
-    height: 260,
+    height: scale(260),
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
 
-  /* BREAKING */
+  /* 🚨 BREAKING */
   breakingBox: {
     position: "absolute",
-    top: 220,
-    left: 14,
-    backgroundColor: "#dc2626",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    elevation: 5,
+    top: scale(210),
+    left: 0,
+    backgroundColor: "#ff0000",
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
+    elevation: 10,
   },
 
   breakingText: {
     color: "#fff",
-    fontWeight: "bold",
-    fontSize: 12,
-  },
-
-  /* TITLE 🔥 */
-  title: {
-    fontSize: 28,
     fontWeight: "900",
-    color: "#111827",
-    paddingHorizontal: 16,
-    marginTop: 14,
-    lineHeight: 34,
+    fontSize: scale(13),
+    letterSpacing: 1,
   },
 
-  /* META */
+  /* 📰 TITLE */
+  title: {
+    fontSize: scale(30),
+    fontWeight: "900",
+    color: COLORS.dark,
+    paddingHorizontal: 16,
+    marginTop: 16,
+    lineHeight: scale(36),
+  },
+
+  /* ⏱ TIME */
   time: {
-    color: "#6b7280",
+    color: COLORS.gray,
     paddingHorizontal: 16,
     marginTop: 6,
-    fontSize: 12,
+    fontSize: scale(12),
   },
 
-  /* REPORTER */
+  /* 👨‍💼 REPORTER */
   reporter: {
     flexDirection: "row",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: "center",
+    backgroundColor: "#fff",
+    marginHorizontal: 14,
+    borderRadius: 14,
+    elevation: 4,
   },
 
   reporterImg: {
@@ -368,157 +429,176 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     marginRight: 12,
     borderWidth: 2,
-    borderColor: "#dc2626",
+    borderColor: COLORS.primary,
   },
 
   reporterName: {
-    fontWeight: "800",
-    fontSize: 15,
+    fontWeight: "900",
+    fontSize: scale(16),
   },
 
   reporterLoc: {
-    fontSize: 12,
-    color: "#6b7280",
+    fontSize: scale(12),
+    color: COLORS.gray,
   },
 
-  /* SOCIAL CARD */
+  /* 🌐 SOCIAL */
   socialRow: {
     flexDirection: "row",
     justifyContent: "space-around",
-    marginVertical: 12,
+    marginVertical: 14,
     backgroundColor: "#fff",
-    paddingVertical: 12,
+    paddingVertical: 14,
     marginHorizontal: 14,
-    borderRadius: 14,
-    elevation: 4,
+    borderRadius: 20,
+    elevation: 6,
   },
 
-  /* DESCRIPTION */
+  /* 📄 DESCRIPTION */
   desc: {
-    color: "#dc2626",
-    fontWeight: "800",
+    color: COLORS.primary,
+    fontWeight: "900",
     paddingHorizontal: 16,
-    fontSize: 16,
+    fontSize: scale(16),
     marginBottom: 8,
   },
 
-  /* CONTENT */
+  /* 🧾 CONTENT */
   content: {
     paddingHorizontal: 16,
-    paddingBottom: 14,
-    fontSize: 16,
-    lineHeight: 26,
+    paddingBottom: 16,
+    fontSize: scale(17),
+    lineHeight: scale(28),
     color: "#374151",
+    textAlign: "justify",
   },
-contents: {
+
+  contents: {
     paddingHorizontal: 16,
-    paddingTop : 16,
+    paddingTop: 16,
     paddingBottom: 14,
-    fontSize: 26,
-    lineHeight: 26,
-    color: "#dc2626",
-    fontWeight:"900",
+    fontSize: scale(24),
+    color: COLORS.primary,
+    fontWeight: "900",
   },
-  /* SLIDER */
+
+  /* 🎞 SLIDER */
   sliderImg: {
     width: width - 24,
-    height: 220,
+    height: scale(220),
     borderRadius: 14,
     marginHorizontal: 12,
   },
 
-  /* SECTION CARD */
+  /* 🧾 SECTION */
   sectionBox: {
     backgroundColor: "#fff",
     marginHorizontal: 14,
-    marginVertical: 10,
-    padding: 14,
-    borderRadius: 14,
-    elevation: 3,
+    marginVertical: 12,
+    padding: 16,
+    borderRadius: 18,
+    elevation: 6,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
   },
 
   sectionHeading: {
-    fontSize: 19,
+    fontSize: scale(19),
     fontWeight: "900",
     marginBottom: 6,
-    color: "#111827",
+    color: COLORS.dark,
   },
 
   sectionImg: {
     width: "100%",
-    height: 190,
+    height: scale(190),
     borderRadius: 12,
     marginVertical: 10,
   },
 
   sectionText: {
-    fontSize: 15,
-    lineHeight: 24,
+    fontSize: scale(16),
+    lineHeight: scale(26),
     color: "#374151",
+    textAlign: "justify",
   },
 
-  /* ACTION BAR */
+  /* ❤️ ACTION BAR */
   actions: {
     flexDirection: "row",
     justifyContent: "space-around",
     backgroundColor: "#fff",
-    marginTop: 12,
-    paddingVertical: 14,
-    borderRadius: 14,
+    marginTop: 14,
+    paddingVertical: 16,
+    borderRadius: 20,
     marginHorizontal: 14,
-    elevation: 4,
+    elevation: 6,
   },
 
   actionBtn: {
     alignItems: "center",
+    backgroundColor: "#f9fafb",
+    padding: 10,
+    borderRadius: 12,
   },
 
-  /* INPUT */
+  /* ✍️ INPUT */
   input: {
     borderWidth: 1,
     borderColor: "#e5e7eb",
     marginHorizontal: 14,
     marginTop: 14,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 14,
     backgroundColor: "#fff",
   },
 
-  /* BUTTON */
+  /* 🔴 BUTTON */
   btn: {
-    backgroundColor: "#dc2626",
+    backgroundColor: COLORS.primary,
     marginHorizontal: 14,
-    marginTop: 10,
-    padding: 15,
-    borderRadius: 14,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 20,
     alignItems: "center",
-    elevation: 4,
+    elevation: 6,
   },
 
   btnText: {
     color: "#fff",
-    fontWeight: "bold",
-    fontSize: 15,
+    fontWeight: "900",
+    fontSize: scale(16),
+    letterSpacing: 1,
   },
 
-  /* COMMENTS */
+  /* 💬 COMMENTS */
   comment: {
     backgroundColor: "#fff",
     marginHorizontal: 14,
-    marginTop: 10,
-    padding: 14,
-    borderRadius: 14,
-    elevation: 2,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 16,
+    elevation: 3,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
   },
 
   commentUser: {
-    fontWeight: "800",
-    marginBottom: 4,
+    fontWeight: "900",
+    marginBottom: 6,
   },
 
   commentTime: {
-    fontSize: 11,
-    color: "#6b7280",
+    fontSize: scale(11),
+    color: COLORS.gray,
     marginTop: 6,
+  },
+
+  /* ➖ DIVIDER */
+  divider: {
+    height: 1,
+    backgroundColor: "#e5e7eb",
+    marginVertical: 12,
+    marginHorizontal: 16,
   },
 });

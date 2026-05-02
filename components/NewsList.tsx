@@ -115,6 +115,9 @@ export default function NewsList() {
     });
   };
 
+  /* 🔴 BREAKING FILTER (TOP HEADLINES) */
+  const breakingNews = newsList.filter((item) => item.breaking);
+
   /* 📰 CARD */
   const renderCard = ({ item }: { item: News }) => {
     handleView(item._id);
@@ -133,48 +136,35 @@ export default function NewsList() {
           onPress={() => openNews(item._id)}
           style={styles.card}
         >
-          {/* IMAGE */}
           <Image source={{ uri: item.featuredImage }} style={styles.image} />
 
-          {/* 🔴 BREAKING */}
           {isBreaking && (
             <View style={styles.breaking}>
               <Text style={styles.breakingText}>BREAKING</Text>
             </View>
           )}
 
-          {/* BODY */}
           <View style={styles.body}>
-            
-            {/* CATEGORY + TIME */}
             <View style={styles.topRow}>
               {item.category && (
                 <Text style={styles.category}>{item.category}</Text>
               )}
-              <Text style={styles.time}>
-                {timeAgo(item.createdAt)}
-              </Text>
+              <Text style={styles.time}>{timeAgo(item.createdAt)}</Text>
             </View>
 
-            {/* TITLE */}
             <Text style={styles.title} numberOfLines={2}>
               {item.title}
             </Text>
 
-            {/* LOCATION */}
             {item.location && (
               <Text style={styles.location}>📍 {item.location}</Text>
             )}
 
-            {/* DESC */}
             <Text style={styles.desc} numberOfLines={2}>
               {item.description}
             </Text>
 
-            {/* ICON ROW */}
             <View style={styles.row}>
-              
-              {/* LIKE */}
               <TouchableOpacity onPress={() => handleLike(item._id)}>
                 <View style={styles.iconRow}>
                   <Ionicons
@@ -186,13 +176,11 @@ export default function NewsList() {
                 </View>
               </TouchableOpacity>
 
-              {/* VIEWS */}
               <View style={styles.iconRow}>
                 <Ionicons name="eye-outline" size={18} color="#64748b" />
                 <Text style={styles.meta}>{item.views}</Text>
               </View>
 
-              {/* SHARE */}
               <TouchableOpacity onPress={() => handleShare(item)}>
                 <View style={styles.iconRow}>
                   <MaterialCommunityIcons
@@ -203,7 +191,6 @@ export default function NewsList() {
                   <Text style={styles.meta}>{item.shares}</Text>
                 </View>
               </TouchableOpacity>
-
             </View>
           </View>
         </TouchableOpacity>
@@ -220,97 +207,222 @@ export default function NewsList() {
       contentContainerStyle={{ paddingBottom: 20 }}
       refreshing={refreshing}
       onRefresh={onRefresh}
+      ListHeaderComponent={
+        <View style={{ padding: 10 }}>
+
+          {/* 🔥 TOP HEADLINES = BREAKING ONLY */}
+          <Text style={styles.sectionTitle}>🔥 Top Breaking Headlines</Text>
+
+          <FlatList
+            horizontal
+            data={breakingNews}
+            keyExtractor={(i) => i._id}
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                onPress={() => openNews(item._id)}
+                style={styles.headlineCard}
+              >
+                <Image
+                  source={{ uri: item.featuredImage }}
+                  style={styles.headlineImage}
+                />
+
+                <View style={styles.headlineOverlay}>
+                  <Text style={styles.headlineText} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+
+                  <Text style={styles.headlineTag}>BREAKING</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      }
     />
   );
 }
 
 const styles = StyleSheet.create({
+  /* 📱 APP BACKGROUND */
+  container: {
+    backgroundColor: "#eef2f7",
+  },
+
+  /* 📰 MAIN NEWS CARD (Ultra Premium) */
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    marginBottom: 14,
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    marginBottom: 18,
     overflow: "hidden",
-    elevation: 2,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
 
   image: {
     width: "100%",
-    height: 180,
+    height: 210,
   },
 
   body: {
-    padding: 12,
+    padding: 16,
   },
 
+  /* 🧭 TOP ROW (clean + spaced) */
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 6,
+    alignItems: "center",
+    marginBottom: 10,
   },
 
+  /* 🔴 CATEGORY BADGE (TV style pill improved) */
   category: {
-    backgroundColor: "#fee2e2",
-    color: "#dc2626",
+    backgroundColor: "#e11d48",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 30,
+
+    color: "#fff",
     fontSize: 10,
-    fontWeight: "bold",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
 
   time: {
     color: "#64748b",
     fontSize: 11,
+    fontWeight: "600",
   },
 
+  /* 🧠 TITLE (news headline strong hierarchy) */
   title: {
-    color: "#111",
-    fontSize: 16,
-    fontWeight: "700",
+    color: "#0f172a",
+    fontSize: 19,
+    fontWeight: "900",
+    lineHeight: 26,
   },
 
   location: {
-    color: "#334155",
+    marginTop: 6,
+    color: "#475569",
     fontSize: 12,
-    marginTop: 4,
+    fontWeight: "600",
   },
 
   desc: {
-    color: "#475569",
-    marginTop: 5,
+    marginTop: 10,
+    color: "#64748b",
     fontSize: 13,
+    lineHeight: 20,
   },
 
+  /* ⚡ ACTION BAR (balanced spacing) */
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 10,
+    marginTop: 16,
+    alignItems: "center",
   },
 
   iconRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
   },
 
   meta: {
     color: "#64748b",
     fontSize: 12,
+    fontWeight: "600",
   },
 
+  /* 🔥 BREAKING BADGE (TV flash style + glow) */
   breaking: {
     position: "absolute",
-    top: 10,
-    left: 10,
-    backgroundColor: "#dc2626",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    top: 14,
+    left: 14,
+
+    backgroundColor: "#ff0000",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+
+    shadowColor: "#ff0000",
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
   },
 
   breakingText: {
     color: "#fff",
     fontSize: 10,
-    fontWeight: "bold",
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+
+  /* 🔥 SECTION TITLE (broadcast header style) */
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#0f172a",
+    marginBottom: 14,
+    letterSpacing: 0.6,
+  },
+
+  /* 🧭 HEADLINES CARD (Aaj Tak style premium thumbnail) */
+  headlineCard: {
+    width: 250,
+    height: 155,
+    marginRight: 14,
+    borderRadius: 18,
+    overflow: "hidden",
+
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 7,
+  },
+
+  headlineImage: {
+    width: "100%",
+    height: "100%",
+  },
+
+  /* 🖤 DARK GRADIENT OVERLAY (more premium feel) */
+  headlineOverlay: {
+    position: "absolute",
+    bottom: 0,
+    width: "100%",
+    padding: 12,
+
+    backgroundColor: "rgba(0,0,0,0.7)",
+  },
+
+  headlineText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "900",
+    lineHeight: 17,
+  },
+
+  headlineTag: {
+    marginTop: 5,
+    color: "#ffd60a",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+
+  /* 📊 PRESS EFFECT (modern UX feel) */
+  cardPressed: {
+    transform: [{ scale: 0.97 }],
+    opacity: 0.92,
   },
 });

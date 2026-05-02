@@ -1,21 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Dimensions,
   TouchableOpacity,
   Modal,
   Pressable,
   Image,
   TextInput,
+  Share,
   Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, Feather } from "@expo/vector-icons";
-
-const { width } = Dimensions.get("window");
+import {
+  FontAwesome,
+  Feather,
+  Ionicons,
+} from "@expo/vector-icons";
 
 type ModalType =
   | "about"
@@ -29,11 +31,42 @@ type ModalType =
 
 export default function Settings() {
   const [modal, setModal] = useState<ModalType>("");
+  const [time, setTime] = useState(new Date());
 
-  const openModal = (type: ModalType) => setModal(type);
-  const closeModal = () => setModal("");
+  useEffect(() => {
+    const interval = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const openLink = (url: string) => Linking.openURL(url);
+  /* ================= ACTIONS ================= */
+
+  const shareApp = async () => {
+    await Share.share({
+      message:
+        "📢 Star News App - Latest Breaking News 🔥\nDownload now & stay updated!",
+    });
+  };
+
+  const open = (url: string) => Linking.openURL(url);
+
+  const callNow = () => Linking.openURL("tel:7987667358");
+
+  const whatsapp = () => Linking.openURL("https://wa.me/917987667358");
+
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString("en-IN", {
+      weekday: "long",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+
+  const formatTime = (d: Date) =>
+    d.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -41,60 +74,121 @@ export default function Settings() {
 
         {/* HEADER */}
         <View style={styles.header}>
-          <Text style={styles.logo}>Settings</Text>
-          <Text style={styles.tagline}>Manage your app experience ⚡</Text>
+          <Text style={styles.logo}>STAR NEWS</Text>
+          <Text style={styles.tagline}>Trusted Local News Platform</Text>
+
+          <View style={styles.timeBox}>
+            <Text style={styles.timeText}>🕒 {formatTime(time)}</Text>
+            <Text style={styles.dateText}>📅 {formatDate(time)}</Text>
+          </View>
         </View>
 
-        {/* PROFILE */}
+        {/* TEAM */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>👤 Profiles</Text>
+          <Text style={styles.sectionTitle}>👤 Team</Text>
 
           <View style={styles.profileRow}>
             <Image
               source={require("@/assets/images/Reporter.jpg")}
               style={styles.avatar}
             />
-            <View style={{ flex: 1 }}>
+            <View>
               <Text style={styles.name}>Prakash Shrivashtava</Text>
-              <Text style={styles.role}>News Reporter</Text>
+              <Text style={styles.role}>Senior Reporter</Text>
             </View>
           </View>
 
           <View style={styles.profileRow}>
             <Image
-              source={{ uri: "https://raaz-universe.vercel.app/static/media/raj.4d0a96b1326489011457.png" }}
+              source={{
+                uri: "https://raaz-universe.vercel.app/static/media/raj.4d0a96b1326489011457.png",
+              }}
               style={styles.avatar}
             />
-            <View style={{ flex: 1 }}>
+            <View>
               <Text style={styles.name}>Raj Mehra</Text>
-              <Text style={styles.role}>Full Stack Developer</Text>
+              <Text style={styles.role}>Tech Lead</Text>
             </View>
           </View>
         </View>
 
-        {/* APP SETTINGS */}
+        {/* CONNECT */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>⚙️ App Settings</Text>
+          <Text style={styles.sectionTitle}>📲 Connect & Share</Text>
 
-          <Option label="About App" icon="info" onPress={() => openModal("about")} />
-          <Option label="App Version" icon="smartphone" onPress={() => openModal("version")} />
-          <Option label="📰 Submit News" icon="edit" onPress={() => openModal("news")} />
+          <Option
+            icon={<Feather name="share-2" size={18} color="#d32f2f" />}
+            label="Share App"
+            onPress={shareApp}
+          />
+
+          <Option
+            icon={<FontAwesome name="whatsapp" size={18} color="#25D366" />}
+            label="WhatsApp Support"
+            onPress={whatsapp}
+          />
+
+          <Option
+            icon={<Feather name="phone" size={18} color="#1877F2" />}
+            label="Call Us"
+            onPress={callNow}
+          />
+        </View>
+
+        {/* SOCIAL MEDIA */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>🌐 Social Media</Text>
+
+          <Option
+            icon={<FontAwesome name="instagram" size={18} color="#E1306C" />}
+            label="Instagram"
+            onPress={() =>
+              open(
+                "https://www.instagram.com/reel/DSEzE6VjA1u/?igsh=enR1OGZ0ZmN4enhz"
+              )
+            }
+          />
+
+          <Option
+            icon={<FontAwesome name="facebook" size={18} color="#1877F2" />}
+            label="Facebook"
+            onPress={() =>
+              open("https://www.facebook.com/share/1Dj3yMqD7R/")
+            }
+          />
+
+          <Option
+            icon={<FontAwesome name="youtube-play" size={18} color="#FF0000" />}
+            label="YouTube"
+            onPress={() =>
+              open(
+                "https://youtube.com/@starnewsnetworks88?si=HHAEJevcHq48Fdrh"
+              )
+            }
+          />
+
+          <Option
+            icon={<FontAwesome name="twitter" size={18} color="#000" />}
+            label="X (Twitter)"
+            onPress={() => open("https://x.com/starnews88")}
+          />
         </View>
 
         {/* LEGAL */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>📄 Legal</Text>
 
-          <Option label="Terms & Conditions" icon="file-text" onPress={() => openModal("terms")} />
-          <Option label="Privacy Policy" icon="shield" onPress={() => openModal("privacy")} />
-        </View>
+          <Option
+            icon={<Feather name="file-text" size={18} color="#d32f2f" />}
+            label="Terms & Conditions"
+            onPress={() => setModal("terms")}
+          />
 
-        {/* SUPPORT */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>🛟 Support</Text>
-
-          <Option label="Help Center" icon="help-circle" onPress={() => openModal("help")} />
-          <Option label="Contact Us" icon="mail" onPress={() => openModal("contact")} />
+          <Option
+            icon={<Feather name="shield" size={18} color="#d32f2f" />}
+            label="Privacy Policy"
+            onPress={() => setModal("privacy")}
+          />
         </View>
 
       </ScrollView>
@@ -102,25 +196,20 @@ export default function Settings() {
       {/* MODAL */}
       <Modal visible={modal !== ""} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, modal === "news" && { height: "90%" }]}>
-
+          <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>
               {modal === "news" ? "📰 Submit News" : modal.toUpperCase()}
             </Text>
 
-            {/* CONTENT */}
             {modal !== "news" ? (
-              <Text style={styles.modalContent}>
-                {getContent(modal)}
-              </Text>
+              <Text style={styles.modalContent}>{getContent(modal)}</Text>
             ) : (
               <NewsForm />
             )}
 
-            <Pressable style={styles.closeBtn} onPress={closeModal}>
+            <Pressable style={styles.closeBtn} onPress={() => setModal("")}>
               <Text style={styles.closeText}>Close</Text>
             </Pressable>
-
           </View>
         </View>
       </Modal>
@@ -129,11 +218,11 @@ export default function Settings() {
 }
 
 /* OPTION COMPONENT */
-const Option = ({ label, icon, onPress }: any) => (
+const Option = ({ icon, label, onPress }: any) => (
   <TouchableOpacity style={styles.optionRow} onPress={onPress}>
-    <Feather name={icon} size={18} color="#38bdf8" />
+    <View style={styles.iconBox}>{icon}</View>
     <Text style={styles.optionText}>{label}</Text>
-    <Ionicons name="chevron-forward" size={18} color="#64748b" />
+    <Ionicons name="chevron-forward" size={18} color="#aaa" />
   </TouchableOpacity>
 );
 
@@ -148,34 +237,13 @@ const NewsForm = () => {
 
   return (
     <ScrollView>
-
-      <TextInput
-        placeholder="Your Name"
-        placeholderTextColor="#aaa"
-        style={news.input}
-        onChangeText={(t) => setForm({ ...form, name: t })}
-      />
-
-      <TextInput
-        placeholder="News Title"
-        placeholderTextColor="#aaa"
-        style={news.input}
-        onChangeText={(t) => setForm({ ...form, title: t })}
-      />
-
-      <TextInput
-        placeholder="Location"
-        placeholderTextColor="#aaa"
-        style={news.input}
-        onChangeText={(t) => setForm({ ...form, location: t })}
-      />
-
+      <TextInput placeholder="Your Name" style={news.input} />
+      <TextInput placeholder="News Title" style={news.input} />
+      <TextInput placeholder="Location" style={news.input} />
       <TextInput
         placeholder="News Content"
-        placeholderTextColor="#aaa"
-        multiline
         style={[news.input, { height: 100 }]}
-        onChangeText={(t) => setForm({ ...form, content: t })}
+        multiline
       />
 
       <TouchableOpacity style={news.btn}>
@@ -183,142 +251,234 @@ const NewsForm = () => {
           Submit News
         </Text>
       </TouchableOpacity>
-
     </ScrollView>
   );
 };
 
 /* CONTENT */
-const getContent = (type: ModalType): string => {
+const getContent = (type: ModalType) => {
   switch (type) {
-    case "about":
-      return "Star News App - Modern news platform with real-time updates.";
-
-    case "version":
-      return "Version 1.0.0";
-
     case "terms":
-      return "Use app responsibly and follow content guidelines.";
-
+      return "Use app responsibly and follow guidelines.";
     case "privacy":
-      return "Your data is secure and not shared.";
-
-    case "help":
-      return "Contact support for help anytime.";
-
-    case "contact":
-      return "📞 +91 7987667358";
-
+      return "Your data is safe and encrypted.";
     default:
       return "";
   }
 };
 
-/* MAIN STYLES */
+/* STYLES */
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#0f172a" },
+  /* APP BACKGROUND */
+  safe: {
+    flex: 1,
+    backgroundColor: "#F3F5F9",
+  },
 
-  container: { padding: 16, paddingBottom: 40 },
+  container: {
+    padding: 18,
+    paddingBottom: 60,
+  },
 
-  header: { marginBottom: 15 },
+  /* HEADER */
+  header: {
+    marginBottom: 20,
+  },
 
-  logo: { fontSize: 26, color: "#38bdf8", fontWeight: "bold" },
+  logo: {
+    fontSize: 30,
+    fontWeight: "900",
+    color: "#B71C1C",
+    letterSpacing: 1,
+  },
 
-  tagline: { color: "#94a3b8" },
+  tagline: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginTop: 4,
+  },
 
-  card: {
-    backgroundColor: "#1e293b",
+  /* TIME BOX (PREMIUM CARD STYLE) */
+  timeBox: {
+    marginTop: 14,
+    backgroundColor: "#FFFFFF",
     padding: 14,
-    borderRadius: 15,
-    marginBottom: 12,
+    borderRadius: 16,
+
+    borderLeftWidth: 5,
+    borderLeftColor: "#D32F2F",
+
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+
+  timeText: {
+    color: "#D32F2F",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  dateText: {
+    color: "#6B7280",
+    fontSize: 12,
+    marginTop: 3,
+  },
+
+  /* MAIN CARD */
+  card: {
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 18,
+    marginBottom: 14,
+
+    borderWidth: 1,
+    borderColor: "#EEF0F3",
+
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 6,
   },
 
   sectionTitle: {
-    color: "#94a3b8",
-    marginBottom: 10,
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 14,
   },
 
+  /* PROFILE */
   profileRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    paddingVertical: 10,
   },
 
   avatar: {
-    width: 55,
-    height: 55,
-    borderRadius: 28,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     marginRight: 12,
+    borderWidth: 2,
+    borderColor: "#F1F1F1",
   },
 
-  name: { color: "#38bdf8", fontWeight: "bold" },
+  name: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#111827",
+  },
 
-  role: { color: "#fff", fontSize: 12 },
+  role: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
+  },
 
+  /* OPTION ROW (MODERN LIST ITEM) */
   optionRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: "#FAFAFA",
+    marginBottom: 10,
+  },
+
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+    marginRight: 12,
   },
 
   optionText: {
-    color: "#fff",
     flex: 1,
-    marginLeft: 10,
+    fontSize: 14,
+    color: "#1F2937",
+    fontWeight: "600",
   },
 
+  /* MODAL */
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(0,0,0,0.55)",
     justifyContent: "center",
     alignItems: "center",
   },
 
   modalBox: {
-    width: "90%",
-    backgroundColor: "#1e293b",
-    padding: 20,
-    borderRadius: 16,
+    width: "92%",
+    backgroundColor: "#FFFFFF",
+    padding: 22,
+    borderRadius: 20,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
   },
 
   modalTitle: {
-    color: "#38bdf8",
     fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
+    fontWeight: "900",
+    color: "#B71C1C",
+    marginBottom: 12,
   },
 
   modalContent: {
-    color: "#fff",
-    marginBottom: 15,
+    fontSize: 13,
+    color: "#374151",
+    lineHeight: 20,
+    marginBottom: 12,
   },
 
   closeBtn: {
-    backgroundColor: "#38bdf8",
-    padding: 10,
-    borderRadius: 10,
+    backgroundColor: "#D32F2F",
+    padding: 14,
+    borderRadius: 14,
+    marginTop: 10,
   },
 
   closeText: {
+    color: "#FFFFFF",
     textAlign: "center",
-    fontWeight: "bold",
+    fontWeight: "800",
+    fontSize: 14,
   },
 });
 
-/* NEWS FORM STYLE */
+/* NEWS FORM (PREMIUM INPUT STYLE) */
 const news = StyleSheet.create({
   input: {
-    backgroundColor: "#0f172a",
-    color: "#fff",
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 10,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 12,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
 
   btn: {
-    backgroundColor: "#ef4444",
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 10,
+    backgroundColor: "#D32F2F",
+    padding: 14,
+    borderRadius: 14,
+    marginTop: 12,
   },
 });

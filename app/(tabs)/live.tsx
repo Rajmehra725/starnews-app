@@ -29,7 +29,7 @@ const useDebounce = (value: string, delay = 300) => {
 };
 
 /* =======================
-   VIDEO TYPE
+   TYPE
 ======================= */
 type Video = {
   _id: string;
@@ -59,6 +59,7 @@ export default function YoutubeScreen() {
   const [filtered, setFiltered] = useState<Video[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"all" | "live" | "video">("all");
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -82,13 +83,11 @@ export default function YoutubeScreen() {
   };
 
   /* =======================
-     SEARCH FILTER (FIXED)
+     SEARCH FILTER
   ======================= */
   useEffect(() => {
     const result = videos.filter((v) =>
-      (v.title || "")
-        .toLowerCase()
-        .includes(debouncedSearch.toLowerCase())
+      (v.title || "").toLowerCase().includes(debouncedSearch.toLowerCase())
     );
     setFiltered(result);
   }, [debouncedSearch, videos]);
@@ -101,18 +100,21 @@ export default function YoutubeScreen() {
     }
   };
 
-  const copyLink = () => {
-    Alert.alert("Copied", "Link copied 👍");
-  };
-
   const liveVideos = filtered.filter((v) => v.type === "live");
   const normalVideos = filtered.filter((v) => v.type !== "live");
+
+  const displayedVideos =
+    activeTab === "live"
+      ? liveVideos
+      : activeTab === "video"
+      ? normalVideos
+      : filtered;
 
   return (
     <ScrollView style={styles.container}>
 
-      {/* HEADER */}
-      <Text style={styles.title}>🎥 Star News YouTube</Text>
+      {/* TITLE */}
+      <Text style={styles.title}>🎥 Star News Live</Text>
 
       {/* SEARCH */}
       <View style={styles.searchBox}>
@@ -122,23 +124,54 @@ export default function YoutubeScreen() {
           placeholderTextColor="#94a3b8"
           value={search}
           onChangeText={setSearch}
-          autoCorrect={false}
-          autoCapitalize="none"
           style={styles.input}
         />
       </View>
 
-      {/* 🔴 LIVE SECTION */}
+      {/* TABS */}
+      <View style={styles.tabRow}>
+        {["all", "live", "video"].map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            onPress={() => setActiveTab(tab as any)}
+            style={[
+              styles.tab,
+              activeTab === tab && styles.activeTab,
+            ]}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === tab && styles.activeTabText,
+              ]}
+            >
+              {tab.toUpperCase()}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* FEATURED */}
+      <View style={styles.featuredCard}>
+        <Text style={styles.featuredLabel}>🔥 FEATURED</Text>
+        <Text style={styles.featuredText}>
+          Watch Latest Breaking & Live News Videos
+        </Text>
+      </View>
+
+      {/* LIVE SECTION */}
       <Text style={styles.sectionTitle}>🔴 Live Now</Text>
 
-      {liveVideos.length === 0 ? (
+      {loading ? (
+        <ActivityIndicator size="large" color="#38bdf8" />
+      ) : liveVideos.length === 0 ? (
         <Text style={styles.noData}>No live stream available</Text>
       ) : (
         liveVideos.map((v) => (
           <View key={v._id} style={styles.card}>
 
             <View style={styles.liveBadge}>
-              <Text style={{ color: "#fff", fontSize: 10 }}>LIVE</Text>
+              <Text style={styles.liveText}>LIVE</Text>
             </View>
 
             <TouchableOpacity onPress={() => openVideo(v.link)}>
@@ -156,7 +189,7 @@ export default function YoutubeScreen() {
             <Text style={styles.videoTitle}>{v.title}</Text>
 
             <View style={styles.actions}>
-              <TouchableOpacity onPress={copyLink}>
+              <TouchableOpacity onPress={() => Alert.alert("Copied")}>
                 <Text style={styles.actionText}>📋 Copy</Text>
               </TouchableOpacity>
 
@@ -171,17 +204,13 @@ export default function YoutubeScreen() {
         ))
       )}
 
-      {/* 📺 VIDEOS */}
+      {/* VIDEOS */}
       <Text style={styles.sectionTitle}>📺 Videos</Text>
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#38bdf8" />
-      ) : filtered.length === 0 ? (
-        <Text style={styles.noData}>
-          😕 No videos found for "{search}"
-        </Text>
+      {displayedVideos.length === 0 ? (
+        <Text style={styles.noData}>No videos found</Text>
       ) : (
-        normalVideos.map((v) => (
+        displayedVideos.map((v) => (
           <View key={v._id} style={styles.card}>
 
             <TouchableOpacity onPress={() => openVideo(v.link)}>
@@ -199,7 +228,7 @@ export default function YoutubeScreen() {
             <Text style={styles.videoTitle}>{v.title}</Text>
 
             <View style={styles.actions}>
-              <TouchableOpacity onPress={copyLink}>
+              <TouchableOpacity onPress={() => Alert.alert("Copied")}>
                 <Text style={styles.actionText}>📋 Copy</Text>
               </TouchableOpacity>
 
@@ -219,105 +248,158 @@ export default function YoutubeScreen() {
 }
 
 /* =======================
-   STYLES
+   STYLES (PRO DARK NEWS UI)
 ======================= */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0f172a",
-    padding: 12,
+    backgroundColor: "#070b14",
+    padding: 14,
     marginTop: 50,
   },
 
   title: {
-    fontSize: 22,
-    fontWeight: "bold",
+    fontSize: 26,
+    fontWeight: "900",
     color: "#38bdf8",
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: 12,
   },
 
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1e293b",
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 15,
+    backgroundColor: "rgba(30,41,59,0.8)",
+    padding: 12,
+    borderRadius: 14,
+    marginBottom: 14,
   },
 
   input: {
-    marginLeft: 8,
+    marginLeft: 10,
     color: "#fff",
     flex: 1,
   },
 
+  /* TABS */
+  tabRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 14,
+  },
+
+  tab: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "#111c2e",
+  },
+
+  activeTab: {
+    backgroundColor: "#ef4444",
+  },
+
+  tabText: {
+    color: "#94a3b8",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  activeTabText: {
+    color: "#fff",
+  },
+
+  featuredCard: {
+    backgroundColor: "#111c2e",
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: "#ef4444",
+  },
+
+  featuredLabel: {
+    color: "#ef4444",
+    fontWeight: "900",
+  },
+
+  featuredText: {
+    color: "#fff",
+    marginTop: 4,
+    fontWeight: "700",
+  },
+
   sectionTitle: {
     color: "#94a3b8",
-    marginVertical: 10,
-    fontSize: 14,
+    marginVertical: 12,
+    fontWeight: "700",
   },
 
   card: {
-    backgroundColor: "#1e293b",
-    borderRadius: 12,
-    marginBottom: 15,
+    backgroundColor: "#0f1a2e",
+    borderRadius: 18,
+    marginBottom: 16,
     overflow: "hidden",
   },
 
   imageWrapper: {
-    height: 200,
+    height: 210,
     position: "relative",
   },
 
   thumbnail: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover",
   },
 
   overlay: {
     position: "absolute",
     top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "flex-end",
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.35)",
   },
 
   videoTitle: {
     color: "#fff",
+    fontWeight: "800",
     padding: 10,
-    fontSize: 14,
+  },
+
+  liveBadge: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    backgroundColor: "#ff0000",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    zIndex: 10,
+  },
+
+  liveText: {
+    color: "#fff",
+    fontWeight: "900",
+    fontSize: 10,
   },
 
   actions: {
     flexDirection: "row",
     justifyContent: "space-between",
-    padding: 10,
+    padding: 12,
   },
 
   actionText: {
     color: "#38bdf8",
-    fontSize: 13,
-  },
-
-  liveBadge: {
-    position: "absolute",
-    top: 10,
-    left: 10,
-    backgroundColor: "red",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
-    zIndex: 10,
+    fontWeight: "600",
   },
 
   noData: {
-    color: "#94a3b8",
+    color: "#64748b",
     textAlign: "center",
-    marginVertical: 10,
+    marginVertical: 20,
   },
 });
