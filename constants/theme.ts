@@ -1,53 +1,118 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Star News Networks - Brand Theme & Design Tokens
+ * BRAND: STAR NEWS NETWORKS
+ * TAGLINE: LOCAL | LIVE | TRUSTED
  */
 
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+export const BrandColors = {
+  // Primary Brand Colors
+  primary: "#E31E24",       // Signature Indian News Red
+  primaryDark: "#B5121B",   // Deep Red / Header & Accents
+  primaryLight: "#FEE2E2",  // Soft Red Tint
+  primaryGhost: "#FFF1F2",  // Subdued Red Background
+  
+  // Neutral Colors
+  white: "#FFFFFF",
+  background: "#F5F6F8",    // Crisp light background
+  cardBg: "#FFFFFF",
+  charcoal: "#171717",      // Primary Text
+  textSecondary: "#525965", // Readable secondary text
+  textMuted: "#8C93A0",     // Timestamps & metadata
+  border: "#E5E7EB",        // Clean divider lines
+  borderLight: "#F0F2F5",
+  
+  // Status & Accents
+  liveRed: "#DC2626",
+  liveBadge: "#B91C1C",
+  success: "#16A34A",
+  warning: "#D97706",
+  info: "#2563EB",
+  gold: "#EAB308",
+  
+  // Dark mode / Overlays
+  overlay: "rgba(0,0,0,0.6)",
+  overlayHeavy: "rgba(0,0,0,0.85)",
+  darkSurface: "#18181B",
+  darkCard: "#27272A",
+};
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: BrandColors.charcoal,
+    background: BrandColors.background,
+    tint: BrandColors.primary,
+    icon: BrandColors.textSecondary,
+    tabIconDefault: BrandColors.textMuted,
+    tabIconSelected: BrandColors.primary,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: "#F4F4F5",
+    background: "#09090B",
+    tint: BrandColors.primary,
+    icon: "#A1A1AA",
+    tabIconDefault: "#71717A",
+    tabIconSelected: "#EF4444",
   },
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
+export const Typography = {
+  titleLarge: {
+    fontSize: 22,
+    fontWeight: "800" as const,
+    color: BrandColors.charcoal,
+    lineHeight: 28,
   },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
+  titleMedium: {
+    fontSize: 18,
+    fontWeight: "700" as const,
+    color: BrandColors.charcoal,
+    lineHeight: 24,
   },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+  headline: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    color: BrandColors.charcoal,
+    lineHeight: 22,
   },
-});
+  body: {
+    fontSize: 14,
+    fontWeight: "400" as const,
+    color: BrandColors.charcoal,
+    lineHeight: 20,
+  },
+  caption: {
+    fontSize: 12,
+    fontWeight: "500" as const,
+    color: BrandColors.textSecondary,
+    lineHeight: 16,
+  },
+  badge: {
+    fontSize: 10,
+    fontWeight: "800" as const,
+    letterSpacing: 0.5,
+  },
+};
+
+export const Shadows = {
+  sm: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  md: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  lg: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+};

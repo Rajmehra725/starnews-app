@@ -1,393 +1,400 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
   TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Linking,
+  FlatList,
   RefreshControl,
+  Dimensions,
+  StatusBar,
 } from "react-native";
-import axios from "axios";
-import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { BrandColors, Shadows } from "@/constants/theme";
+import { apiClient, YouTubeItem } from "@/_services/api";
 
 const { width } = Dimensions.get("window");
 
-const API = "https://starnewsbackend.onrender.com/api/news";
-
-const COLORS = {
-  primary: "#dc2626",
-  dark: "#111827",
-  light: "#f4f6f8",
-  white: "#ffffff",
-  gray: "#6b7280",
+const getVideoId = (url: string) => {
+  if (!url) return "";
+  const match = url.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/
+  );
+  return match ? match[1] : "";
 };
 
-const scale = (size: number) => (width / 375) * size;
+const getThumbnail = (url: string) => {
+  const id = getVideoId(url);
+  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800";
+};
 
-export default function CategoryNews() {
-  const [newsList, setNewsList] = useState<any[]>([]);
-  const [filteredNews, setFilteredNews] = useState<any[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("All");
+export default function VideoNewsScreen() {
+  const [videos, setVideos] = useState<YouTubeItem[]>([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"all" | "live" | "video">("all");
+
+  const fetchVideos = async () => {
+    try {
+      const res = await apiClient.get<YouTubeItem[]>("/api/youtube/all");
+      setVideos(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.log("Videos fetch error:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    fetchNews();
+    fetchVideos();
   }, []);
 
-  const fetchNews = async () => {
-    try {
-      const res = await axios.get(API);
-      setNewsList(res.data);
-      applyFilter(selectedCategory, search, res.data);
-    } catch (err) {
-      console.log("API Error");
-    }
-  };
-
-  /* 🧠 FILTER ENGINE (CATEGORY + SEARCH) */
-  const applyFilter = (cat: string, text: string, data = newsList) => {
-    let filtered = data;
-
-    if (cat !== "All") {
-      filtered = filtered.filter((i) => i.category === cat);
-    }
-
-    if (text.trim()) {
-      filtered = filtered.filter((i) =>
-        i.title.toLowerCase().includes(text.toLowerCase())
-      );
-    }
-
-    setFilteredNews(filtered);
-  };
-
-  /* 🔥 CATEGORY CHANGE */
-  const filterCategory = (cat: string) => {
-    setSelectedCategory(cat);
-    applyFilter(cat, search);
-  };
-
-  /* 🔍 SEARCH */
-  useEffect(() => {
-    const t = setTimeout(() => {
-      applyFilter(selectedCategory, search);
-    }, 300);
-
-    return () => clearTimeout(t);
-  }, [search]);
-
-  /* 🔄 ONLY SELECTED CATEGORY REFRESH */
-  const onRefresh = async () => {
+  const onRefresh = () => {
     setRefreshing(true);
-
-    try {
-      const res = await axios.get(API);
-
-      setNewsList(res.data);
-
-      // 👇 only refresh current category data
-      let data = res.data;
-
-      if (selectedCategory !== "All") {
-        data = data.filter((i: any) => i.category === selectedCategory);
-      }
-
-      setFilteredNews(data);
-    } catch (e) {}
-
-    setRefreshing(false);
+    fetchVideos();
   };
 
-  /* ⏱ TIME */
-  const timeAgo = (date: string) => {
-    const sec = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  const filteredVideos = useMemo(() => {
+    return videos.filter((v) => {
+      const matchesSearch = search.trim()
+        ? v.title.toLowerCase().includes(search.toLowerCase())
+        : true;
+      const matchesTab =
+        activeTab === "all" ? true : v.type === activeTab;
+      return matchesSearch && matchesTab;
+    });
+  }, [videos, search, activeTab]);
 
-    if (sec < 60) return "now";
-    if (sec < 3600) return `${Math.floor(sec / 60)}m`;
-    if (sec < 86400) return `${Math.floor(sec / 3600)}h`;
-    return `${Math.floor(sec / 86400)}d`;
+  const handleOpenVideo = (link: string) => {
+    if (!link) return;
+    Linking.openURL(link).catch((err) => console.log("Failed to open link:", err));
   };
-
-  /* CATEGORIES */
-  const categories = [
-    "All",
-    "Politics",
-    "Crime",
-    "Sports",
-    "Education",
-    "Local",
-    "Health",
-    "Forest",
-    "Share Market",
-    "Finance",
-    "Crime Offence",
-  ];
-
-  /* CARD */
-  const renderItem = ({ item }: any) => (
-    <TouchableOpacity style={styles.card} activeOpacity={0.85}>
-      <Image source={{ uri: item.featuredImage }} style={styles.image} />
-
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>{item.category || "News"}</Text>
-      </View>
-
-      <Text style={styles.title} numberOfLines={2}>
-        {item.title}
-      </Text>
-
-      <Text style={styles.time}>{timeAgo(item.createdAt)}</Text>
-    </TouchableOpacity>
-  );
 
   return (
-    <View style={styles.container}>
-      {/* HEADER */}
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <StatusBar barStyle="light-content" backgroundColor={BrandColors.primaryDark} />
+
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.logo}>📰 STAR NEWS</Text>
-
-        <View style={styles.liveBadge}>
-          <Text style={styles.liveText}>LIVE</Text>
+        <View style={styles.brandRow}>
+          <View style={styles.liveBadge}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>STAR LIVE TV</Text>
+          </View>
+          <Text style={styles.title}>वीडियो एवं लाइव प्रसारण</Text>
         </View>
-      </View>
 
-      {/* SEARCH */}
-      <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color="#666" />
-        <TextInput
-          placeholder="Search news..."
-          value={search}
-          onChangeText={setSearch}
-          style={styles.searchInput}
-        />
-      </View>
+        {/* Search Field */}
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={17} color={BrandColors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="वीडियो बुलेटिन खोजें (Search video news)..."
+            placeholderTextColor={BrandColors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch("")}>
+              <Ionicons name="close-circle" size={17} color={BrandColors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
 
-      {/* 🔥 CATEGORY (FIXED UI) */}
-      <View style={styles.categoryContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {categories.map((c) => (
+        {/* Tab Filters */}
+        <View style={styles.tabsRow}>
+          {(["all", "live", "video"] as const).map((tab) => (
             <TouchableOpacity
-              key={c}
-              onPress={() => filterCategory(c)}
-              style={[
-                styles.categoryCard,
-                selectedCategory === c && styles.categoryActive,
-              ]}
+              key={tab}
+              style={[styles.filterChip, activeTab === tab && styles.activeFilterChip]}
+              onPress={() => setActiveTab(tab)}
             >
-              <Text
-                style={[
-                  styles.categoryText,
-                  selectedCategory === c && styles.categoryTextActive,
-                ]}
-              >
-                {c}
+              <Text style={[styles.filterChipText, activeTab === tab && styles.activeFilterChipText]}>
+                {tab === "all" ? "सभी वीडियो (All)" : tab === "live" ? "🔴 लाइव (Live)" : "📹 रिपोर्ट्स (Reports)"}
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
       </View>
 
-      {/* FEATURED */}
-      {filteredNews[0] && (
-        <View style={styles.featured}>
-          <Image
-            source={{ uri: filteredNews[0].featuredImage }}
-            style={styles.featuredImage}
-          />
-          <View style={styles.featuredOverlay}>
-            <Text style={styles.featuredText} numberOfLines={2}>
-              {filteredNews[0].title}
-            </Text>
-          </View>
+      {/* Videos Feed */}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={BrandColors.primary} />
+          <Text style={styles.loadingText}>वीडियो लोड हो रहे हैं...</Text>
         </View>
-      )}
+      ) : (
+        <FlatList
+          data={filteredVideos}
+          keyExtractor={(item) => item._id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[BrandColors.primary]}
+            />
+          }
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item }) => {
+            const thumb = getThumbnail(item.link);
+            const isLive = item.type === "live";
 
-      {/* LIST */}
-      <FlatList
-        data={filteredNews}
-        keyExtractor={(i, idx) => i._id || idx.toString()}
-        renderItem={renderItem}
-        numColumns={2}
-        contentContainerStyle={styles.grid}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={["#dc2626"]}
-          />
-        }
-        ListEmptyComponent={
-          <Text style={styles.empty}>No news found 🔍</Text>
-        }
-      />
-    </View>
+            return (
+              <TouchableOpacity
+                style={styles.videoCard}
+                activeOpacity={0.9}
+                onPress={() => handleOpenVideo(item.link)}
+              >
+                <View style={styles.thumbnailWrapper}>
+                  <Image source={{ uri: thumb }} style={styles.thumbnail} contentFit="cover" />
+                  
+                  {/* Dark Overlay */}
+                  <View style={styles.videoOverlay} />
+
+                  {/* Play Button Icon */}
+                  <View style={styles.playIconBox}>
+                    <Ionicons name="play" size={26} color="#FFF" style={{ marginLeft: 2 }} />
+                  </View>
+
+                  {/* Badge */}
+                  <View style={[styles.typeBadge, isLive && styles.liveTypeBadge]}>
+                    <Text style={styles.typeBadgeText}>
+                      {isLive ? "🔴 LIVE STREAM" : "NEWS CLIP"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.cardInfo}>
+                  <Text style={styles.videoTitle} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                  <View style={styles.cardFooter}>
+                    <View style={styles.channelBadge}>
+                      <MaterialCommunityIcons name="youtube" size={16} color="#EF4444" />
+                      <Text style={styles.channelText}>Star News Networks 88</Text>
+                    </View>
+                    <View style={styles.watchNowBtn}>
+                      <Text style={styles.watchNowText}>Watch on YouTube</Text>
+                      <Ionicons name="open-outline" size={13} color={BrandColors.primary} />
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
+          ListEmptyComponent={
+            <View style={styles.center}>
+              <Ionicons name="videocam-outline" size={48} color={BrandColors.textMuted} />
+              <Text style={styles.emptyTitle}>कोई वीडियो उपलब्ध नहीं है</Text>
+              <Text style={styles.emptySubtitle}>कृपया कुछ समय बाद पुनः देखें।</Text>
+            </View>
+          }
+        />
+      )}
+    </SafeAreaView>
   );
 }
 
-/* ================= STYLES ================= */
-
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    backgroundColor: COLORS.light,
+    backgroundColor: BrandColors.primaryDark,
   },
-
   header: {
+    backgroundColor: BrandColors.primaryDark,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    gap: 12,
+  },
+  brandRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 45,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: COLORS.primary,
-    elevation: 10,
+    paddingTop: 6,
   },
-
-  logo: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-
   liveBadge: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-
-  liveText: {
-    color: COLORS.primary,
-    fontWeight: "900",
-    fontSize: 10,
-  },
-
-  searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    margin: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    elevation: 4,
-  },
-
-  searchInput: {
-    flex: 1,
-    padding: 10,
-  },
-
-  /* 🔥 CATEGORY FIXED UI */
-  categoryContainer: {
-    marginVertical: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
     paddingHorizontal: 8,
-  },
-
-  categoryCard: {
-    backgroundColor: "#e5e7eb",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 22,
-    marginRight: 8,
-    elevation: 2,
-  },
-
-  categoryActive: {
-    backgroundColor: COLORS.primary,
-  },
-
-  categoryText: {
-    fontSize: 12,
-    color: "#333",
-    fontWeight: "600",
-  },
-
-  categoryTextActive: {
-    color: "#fff",
-    fontWeight: "900",
-  },
-
-  featured: {
-    margin: 12,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-
-  featuredImage: {
-    width: "100%",
-    height: 190,
-  },
-
-  featuredOverlay: {
-    position: "absolute",
-    bottom: 0,
-    width: "100%",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    padding: 10,
-  },
-
-  featuredText: {
-    color: "#fff",
-    fontWeight: "900",
-    fontSize: 16,
-  },
-
-  grid: {
-    paddingHorizontal: 8,
-  },
-
-  card: {
-    width: width / 2 - 14,
-    backgroundColor: "#fff",
-    margin: 6,
-    borderRadius: 14,
-    overflow: "hidden",
-    elevation: 4,
-  },
-
-  image: {
-    width: "100%",
-    height: 120,
-  },
-
-  badge: {
-    position: "absolute",
-    top: 6,
-    left: 6,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 4,
     borderRadius: 6,
+    gap: 5,
   },
-
-  badgeText: {
-    color: "#fff",
-    fontSize: 8,
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#EF4444",
+  },
+  liveText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  title: {
+    color: "#FFF",
+    fontSize: 14,
     fontWeight: "700",
   },
-
-  title: {
-    fontSize: 12,
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 42,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: BrandColors.charcoal,
+  },
+  tabsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+  },
+  activeFilterChip: {
+    backgroundColor: "#FFF",
+  },
+  filterChipText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  activeFilterChipText: {
+    color: BrandColors.primaryDark,
+  },
+  listContent: {
+    padding: 14,
+    paddingBottom: 80,
+    backgroundColor: BrandColors.background,
+  },
+  videoCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+    ...Shadows.sm,
+  },
+  thumbnailWrapper: {
+    width: "100%",
+    height: 190,
+    position: "relative",
+    backgroundColor: "#000",
+  },
+  thumbnail: {
+    width: "100%",
+    height: "100%",
+  },
+  videoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
+  },
+  playIconBox: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: [{ translateX: -25 }, { translateY: -25 }],
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "rgba(227, 30, 36, 0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  typeBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
     paddingHorizontal: 8,
-    paddingTop: 6,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  liveTypeBadge: {
+    backgroundColor: BrandColors.primary,
+  },
+  typeBadgeText: {
+    color: "#FFF",
+    fontSize: 10,
     fontWeight: "800",
   },
-
-  time: {
-    fontSize: 10,
-    color: COLORS.gray,
-    paddingHorizontal: 8,
-    paddingBottom: 8,
+  cardInfo: {
+    padding: 12,
+    gap: 8,
   },
-
-  empty: {
-    textAlign: "center",
-    marginTop: 40,
-    color: COLORS.gray,
+  videoTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: BrandColors.charcoal,
+    lineHeight: 20,
+  },
+  cardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.borderLight,
+    paddingTop: 8,
+  },
+  channelBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  channelText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: BrandColors.textSecondary,
+  },
+  watchNowBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  watchNowText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: BrandColors.primary,
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 30,
+    gap: 10,
+    backgroundColor: BrandColors.background,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: BrandColors.textSecondary,
+    fontWeight: "600",
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: BrandColors.charcoal,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: BrandColors.textSecondary,
   },
 });

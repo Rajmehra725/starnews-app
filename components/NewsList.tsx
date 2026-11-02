@@ -1,428 +1,258 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  Image,
   TouchableOpacity,
-  Share,
+  RefreshControl,
 } from "react-native";
-import axios from "axios";
 import { useRouter } from "expo-router";
-import { TapGestureHandler } from "react-native-gesture-handler";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import { io } from "socket.io-client";
+import { BrandColors } from "@/constants/theme";
+import { apiClient, API_BASE_URL, NewsArticle } from "@/_services/api";
+import NewsCard from "@/components/NewsCard";
+import FeaturedNewsCard from "@/components/FeaturedNewsCard";
+import LoadingSkeleton from "@/components/LoadingSkeleton";
 
-type News = {
-  _id: string;
-  title: string;
-  description: string;
-  featuredImage: string;
-  likes: number;
-  shares: number;
-  views: number;
-  createdAt: string;
-  breaking?: boolean;
-  category?: string;
-  location?: string;
-};
+interface NewsListProps {
+  filterCategory?: string;
+  headerComponent?: React.ReactElement;
+  onScrollToTop?: () => void;
+}
 
-const API = "https://starnewsbackend.onrender.com/api/news";
-
-export default function NewsList() {
+export default function NewsList({
+  filterCategory,
+  headerComponent,
+}: NewsListProps) {
   const router = useRouter();
-
-  const [newsList, setNewsList] = useState<News[]>([]);
-  const [liked, setLiked] = useState<Record<string, boolean>>({});
-  const [refreshing, setRefreshing] = useState(false);
-
+  const listRef = useRef<FlatList>(null);
   const viewedRef = useRef<Set<string>>(new Set());
-  const lastTap = useRef<number | null>(null);
+
+  const [newsList, setNewsList] = useState<NewsArticle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchNews = useCallback(async () => {
+    try {
+      setError(null);
+      const res = await apiClient.get<NewsArticle[]>("/api/news");
+      const data = Array.isArray(res.data) ? res.data : [];
+      setNewsList(data);
+    } catch (err: any) {
+      console.log("News Fetch Error:", err?.message);
+      setError("समाचार लोड करने में असमर्थ। कृपया पुनः प्रयास करें।");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchNews();
-  }, []);
 
-  /* 🔄 FETCH */
-  const fetchNews = async () => {
-    try {
-      const res = await axios.get<News[]>(API);
-      setNewsList(res.data);
-    } catch (err) {
-      console.log("Fetch error:", err);
-    }
-  };
+    // Socket.IO realtime listeners
+    const socket = io(API_BASE_URL, { transports: ["websocket"] });
 
-  /* 🔄 REFRESH */
+    socket.on("viewsUpdated", ({ newsId, views }: { newsId: string; views: number }) => {
+      setNewsList((prev) =>
+        prev.map((n) => (n._id === newsId ? { ...n, views } : n))
+      );
+    });
+
+    socket.on("likeUpdated", ({ newsId, likes }: { newsId: string; likes: number }) => {
+      setNewsList((prev) =>
+        prev.map((n) => (n._id === newsId ? { ...n, likes } : n))
+      );
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [fetchNews]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchNews();
-    setRefreshing(false);
   };
 
-  /* ⏱ TIME AGO */
-  const timeAgo = (date: string) => {
-    const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-
-    if (seconds < 60) return "Just now";
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hr ago`;
-    if (seconds < 172800) return "Yesterday";
-
-    return `${Math.floor(seconds / 86400)} days ago`;
-  };
-
-  /* 👁 VIEW */
-  const handleView = async (id: string) => {
+  const handleTrackView = async (id: string) => {
     if (viewedRef.current.has(id)) return;
     viewedRef.current.add(id);
 
     try {
-      await axios.post(`${API}/${id}/view`, { userId: "guest" });
-    } catch {}
-  };
-
-  /* ❤️ LIKE */
-  const handleLike = async (id: string) => {
-    setLiked((p) => ({ ...p, [id]: !p[id] }));
-    try {
-      await axios.post(`${API}/${id}/like`, { userId: "guest" });
-    } catch {}
-  };
-
-  /* 🔁 SHARE */
-  const handleShare = async (item: News) => {
-    try {
-      await Share.share({
-        message: `${item.title}\n\nRead more on Star News`,
-      });
-    } catch {}
-  };
-
-  /* ❤️ DOUBLE TAP */
-  const handleDoubleTap = (id: string) => {
-    const now = Date.now();
-    if (lastTap.current && now - lastTap.current < 300) {
-      handleLike(id);
+      await apiClient.post(`/api/news/${id}/view`, { userId: "app_user" });
+    } catch {
+      // silently handle
     }
-    lastTap.current = now;
   };
 
-  const openNews = (id: string) => {
-    router.push({
-      pathname: "/news/[id]",
-      params: { id },
-    });
-  };
+  // Filter news articles based on selected category / status
+  const displayedNews = React.useMemo(() => {
+    let list = [...newsList];
+    
+    // Only show published news if status is set, or all if not set
+    list = list.filter((n) => n.status !== "draft");
 
-  /* 🔴 BREAKING FILTER (TOP HEADLINES) */
-  const breakingNews = newsList.filter((item) => item.breaking);
+    if (filterCategory && filterCategory.toLowerCase() !== "all" && filterCategory.toLowerCase() !== "home") {
+      list = list.filter((n) =>
+        n.category?.toLowerCase().includes(filterCategory.toLowerCase()) ||
+        n.title?.toLowerCase().includes(filterCategory.toLowerCase())
+      );
+    }
 
-  /* 📰 CARD */
-  const renderCard = ({ item }: { item: News }) => {
-    handleView(item._id);
+    return list;
+  }, [newsList, filterCategory]);
 
-    const isBreaking =
-      item.breaking ||
-      Date.now() - new Date(item.createdAt).getTime() < 2 * 60 * 60 * 1000;
+  const topStory = displayedNews.length > 0 ? displayedNews[0] : null;
+  const remainingNews = displayedNews.slice(1);
 
+  if (loading && newsList.length === 0) {
     return (
-      <TapGestureHandler
-        numberOfTaps={2}
-        onActivated={() => handleDoubleTap(item._id)}
-      >
-        <TouchableOpacity
-          activeOpacity={0.95}
-          onPress={() => openNews(item._id)}
-          style={styles.card}
-        >
-          <Image source={{ uri: item.featuredImage }} style={styles.image} />
-
-          {isBreaking && (
-            <View style={styles.breaking}>
-              <Text style={styles.breakingText}>BREAKING</Text>
-            </View>
-          )}
-
-          <View style={styles.body}>
-            <View style={styles.topRow}>
-              {item.category && (
-                <Text style={styles.category}>{item.category}</Text>
-              )}
-              <Text style={styles.time}>{timeAgo(item.createdAt)}</Text>
-            </View>
-
-            <Text style={styles.title} numberOfLines={2}>
-              {item.title}
-            </Text>
-
-            {item.location && (
-              <Text style={styles.location}>📍 {item.location}</Text>
-            )}
-
-            <Text style={styles.desc} numberOfLines={2}>
-              {item.description}
-            </Text>
-
-            <View style={styles.row}>
-              <TouchableOpacity onPress={() => handleLike(item._id)}>
-                <View style={styles.iconRow}>
-                  <Ionicons
-                    name={liked[item._id] ? "heart" : "heart-outline"}
-                    size={18}
-                    color={liked[item._id] ? "#ef4444" : "#64748b"}
-                  />
-                  <Text style={styles.meta}>{item.likes}</Text>
-                </View>
-              </TouchableOpacity>
-
-              <View style={styles.iconRow}>
-                <Ionicons name="eye-outline" size={18} color="#64748b" />
-                <Text style={styles.meta}>{item.views}</Text>
-              </View>
-
-              <TouchableOpacity onPress={() => handleShare(item)}>
-                <View style={styles.iconRow}>
-                  <MaterialCommunityIcons
-                    name="share-variant-outline"
-                    size={18}
-                    color="#64748b"
-                  />
-                  <Text style={styles.meta}>{item.shares}</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </TapGestureHandler>
+      <View style={styles.container}>
+        {headerComponent}
+        <LoadingSkeleton />
+      </View>
     );
-  };
+  }
+
+  if (error && newsList.length === 0) {
+    return (
+      <View style={styles.container}>
+        {headerComponent}
+        <View style={styles.errorContainer}>
+          <Ionicons name="cloud-offline-outline" size={48} color={BrandColors.primary} />
+          <Text style={styles.errorTitle}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchNews}>
+            <Text style={styles.retryText}>पुनः लोड करें (Retry)</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <FlatList
-      data={newsList}
+      ref={listRef}
+      data={remainingNews}
       keyExtractor={(item) => item._id}
-      renderItem={renderCard}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 20 }}
-      refreshing={refreshing}
-      onRefresh={onRefresh}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[BrandColors.primary]}
+          tintColor={BrandColors.primary}
+        />
+      }
       ListHeaderComponent={
-        <View style={{ padding: 10 }}>
+        <>
+          {headerComponent}
 
-          {/* 🔥 TOP HEADLINES = BREAKING ONLY */}
-          <Text style={styles.sectionTitle}>🔥 Top Breaking Headlines</Text>
+          {/* Featured Top Story */}
+          {topStory && (
+            <View style={styles.leadSection}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionRedBar} />
+                <Text style={styles.sectionTitle}>प्रमुख समाचार (TOP STORY)</Text>
+              </View>
+              <FeaturedNewsCard article={topStory} />
+            </View>
+          )}
 
-          <FlatList
-            horizontal
-            data={breakingNews}
-            keyExtractor={(i) => i._id}
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                onPress={() => openNews(item._id)}
-                style={styles.headlineCard}
-              >
-                <Image
-                  source={{ uri: item.featuredImage }}
-                  style={styles.headlineImage}
-                />
-
-                <View style={styles.headlineOverlay}>
-                  <Text style={styles.headlineText} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-
-                  <Text style={styles.headlineTag}>BREAKING</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
+          {remainingNews.length > 0 && (
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionRedBar} />
+              <Text style={styles.sectionTitle}>ताज़ा खबरें (LATEST NEWS)</Text>
+            </View>
+          )}
+        </>
+      }
+      renderItem={({ item }) => {
+        handleTrackView(item._id);
+        return <NewsCard article={item} />;
+      }}
+      ListEmptyComponent={
+        <View style={styles.emptyContainer}>
+          <Ionicons name="newspaper-outline" size={44} color={BrandColors.textMuted} />
+          <Text style={styles.emptyTitle}>फिलहाल कोई खबर उपलब्ध नहीं है</Text>
+          <Text style={styles.emptySubtitle}>कृपया कुछ समय बाद पुनः देखें।</Text>
         </View>
       }
+      contentContainerStyle={styles.listContent}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  /* 📱 APP BACKGROUND */
   container: {
-    backgroundColor: "#eef2f7",
+    flex: 1,
+    backgroundColor: BrandColors.background,
   },
-
-  /* 📰 MAIN NEWS CARD (Ultra Premium) */
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
-    marginBottom: 18,
-    overflow: "hidden",
-
-    shadowColor: "#000",
-    shadowOpacity: 0.14,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+  listContent: {
+    paddingBottom: 90,
   },
-
-  image: {
-    width: "100%",
-    height: 210,
-  },
-
-  body: {
-    padding: 16,
-  },
-
-  /* 🧭 TOP ROW (clean + spaced) */
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-
-  /* 🔴 CATEGORY BADGE (TV style pill improved) */
-  category: {
-    backgroundColor: "#e11d48",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 30,
-
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-
-  time: {
-    color: "#64748b",
-    fontSize: 11,
-    fontWeight: "600",
-  },
-
-  /* 🧠 TITLE (news headline strong hierarchy) */
-  title: {
-    color: "#0f172a",
-    fontSize: 19,
-    fontWeight: "900",
-    lineHeight: 26,
-  },
-
-  location: {
+  leadSection: {
     marginTop: 6,
-    color: "#475569",
-    fontSize: 12,
-    fontWeight: "600",
   },
-
-  desc: {
-    marginTop: 10,
-    color: "#64748b",
-    fontSize: 13,
-    lineHeight: 20,
-  },
-
-  /* ⚡ ACTION BAR (balanced spacing) */
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 16,
-    alignItems: "center",
-  },
-
-  iconRow: {
+  sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    marginHorizontal: 14,
+    marginTop: 12,
+    marginBottom: 10,
+    gap: 8,
   },
-
-  meta: {
-    color: "#64748b",
-    fontSize: 12,
-    fontWeight: "600",
+  sectionRedBar: {
+    width: 4,
+    height: 18,
+    borderRadius: 2,
+    backgroundColor: BrandColors.primary,
   },
-
-  /* 🔥 BREAKING BADGE (TV flash style + glow) */
-  breaking: {
-    position: "absolute",
-    top: 14,
-    left: 14,
-
-    backgroundColor: "#ff0000",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 8,
-
-    shadowColor: "#ff0000",
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-
-  breakingText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1.2,
-  },
-
-  /* 🔥 SECTION TITLE (broadcast header style) */
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 14,
     fontWeight: "900",
-    color: "#0f172a",
-    marginBottom: 14,
+    color: BrandColors.charcoal,
     letterSpacing: 0.6,
   },
-
-  /* 🧭 HEADLINES CARD (Aaj Tak style premium thumbnail) */
-  headlineCard: {
-    width: 250,
-    height: 155,
-    marginRight: 14,
-    borderRadius: 18,
-    overflow: "hidden",
-
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 7,
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 50,
+    gap: 8,
   },
-
-  headlineImage: {
-    width: "100%",
-    height: "100%",
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: BrandColors.charcoal,
   },
-
-  /* 🖤 DARK GRADIENT OVERLAY (more premium feel) */
-  headlineOverlay: {
-    position: "absolute",
-    bottom: 0,
-    width: "100%",
-    padding: 12,
-
-    backgroundColor: "rgba(0,0,0,0.7)",
-  },
-
-  headlineText: {
-    color: "#fff",
+  emptySubtitle: {
     fontSize: 13,
-    fontWeight: "900",
-    lineHeight: 17,
+    color: BrandColors.textSecondary,
   },
-
-  headlineTag: {
-    marginTop: 5,
-    color: "#ffd60a",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1.2,
+  errorContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+    gap: 12,
   },
-
-  /* 📊 PRESS EFFECT (modern UX feel) */
-  cardPressed: {
-    transform: [{ scale: 0.97 }],
-    opacity: 0.92,
+  errorTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: BrandColors.charcoal,
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: BrandColors.primary,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "800",
   },
 });

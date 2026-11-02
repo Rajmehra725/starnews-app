@@ -1,146 +1,231 @@
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
+  TouchableOpacity,
   Animated,
-  Easing,
+  ActivityIndicator,
 } from "react-native";
-import { useEffect, useRef, useState } from "react";
-import axios from "axios";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import { io } from "socket.io-client";
+import { BrandColors } from "@/constants/theme";
+import { apiClient, API_BASE_URL, BreakingItem } from "@/_services/api";
 
-const API_URL = "https://starnewsbackend.onrender.com/api/breaking";
+export default function BreakingTicker() {
+  const [items, setItems] = useState<BreakingItem[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-export default function BreakingNews() {
-  const [newsList, setNewsList] = useState<any[]>([]);
-  const [index, setIndex] = useState(0);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
-  const translateX = useRef(new Animated.Value(50)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  /* FETCH */
+  // Pulse animation for the LIVE indicator
   useEffect(() => {
-    const fetchNews = async () => {
-      try {
-        const res = await axios.get(API_URL);
-        setNewsList(res.data.filter((n: any) => n.isActive));
-      } catch (e) {
-        console.log(e);
-      }
-    };
-
-    fetchNews();
-    const interval = setInterval(fetchNews, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const current = newsList[index];
-
-  const formatText = (item: any) => {
-    if (!item) return "";
-    return `${item.location ? `[${item.location}]` : ""} 🔴 ${item.text}`;
-  };
-
-  /* ANIMATION */
-  useEffect(() => {
-    if (!current) return;
-
-    translateX.setValue(50);
-    opacity.setValue(0);
-
-    Animated.parallel([
-      Animated.timing(translateX, {
-        toValue: 0,
-        duration: 400,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    const timer = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(translateX, {
-          toValue: -50,
-          duration: 400,
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.4,
+          duration: 600,
           useNativeDriver: true,
         }),
-        Animated.timing(opacity, {
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulseLoop.start();
+    return () => pulseLoop.stop();
+  }, [pulseAnim]);
+
+  // Fetch breaking news from backend
+  const fetchBreaking = async () => {
+    try {
+      const res = await apiClient.get<BreakingItem[]>("/api/breaking");
+      const active = (res.data || []).filter((b) => b.isActive);
+      setItems(active);
+    } catch (err) {
+      console.log("Breaking News Fetch Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBreaking();
+
+    // Listen for live socket updates
+    const socket = io(API_BASE_URL, { transports: ["websocket"] });
+    socket.on("breakingUpdated", () => {
+      fetchBreaking();
+    });
+
+    const interval = setInterval(fetchBreaking, 30000);
+
+    return () => {
+      socket.disconnect();
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Text cycling animation
+  useEffect(() => {
+    if (items.length <= 1) return;
+
+    const timer = setInterval(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 300,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: -8,
+          duration: 250,
           useNativeDriver: true,
         }),
       ]).start(() => {
-        setIndex((prev) =>
-          prev === newsList.length - 1 ? 0 : prev + 1
-        );
+        setCurrentIndex((prev) => (prev + 1) % items.length);
+        slideAnim.setValue(8);
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 250,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 250,
+            useNativeDriver: true,
+          }),
+        ]).start();
       });
-    }, 3000);
+    }, 4500);
 
-    return () => clearTimeout(timer);
-  }, [index, newsList]);
+    return () => clearInterval(timer);
+  }, [items, fadeAnim, slideAnim]);
 
-  if (!current) return null;
+  if (loading && items.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color={BrandColors.primary} />
+        <Text style={styles.loadingText}>ताज़ा अपडेट लोड हो रहे हैं...</Text>
+      </View>
+    );
+  }
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  const currentItem = items[currentIndex] || items[0];
 
   return (
-    <View style={styles.container}>
-      
-      <View style={styles.label}>
-        <Text style={styles.labelText}>BREAKING</Text>
+    <View style={styles.wrapper}>
+      {/* Red News Channel Badge */}
+      <View style={styles.badge}>
+        <Animated.View style={[styles.liveDot, { opacity: pulseAnim }]} />
+        <MaterialCommunityIcons name="flash" size={14} color="#FFF" />
+        <Text style={styles.badgeText}>BREAKING</Text>
       </View>
 
-      <View style={styles.box}>
+      {/* Headline Text with animation */}
+      <View style={styles.textContainer}>
         <Animated.Text
           style={[
-            styles.text,
+            styles.headlineText,
             {
-              transform: [{ translateX }],
-              opacity,
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
             },
           ]}
+          numberOfLines={1}
         >
-          {formatText(current)}
+          {currentItem.text}
         </Animated.Text>
       </View>
 
+      {/* Counter Badge if multiple */}
+      {items.length > 1 && (
+        <View style={styles.counterBadge}>
+          <Text style={styles.counterText}>
+            {currentIndex + 1}/{items.length}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
     flexDirection: "row",
-    backgroundColor: "#000",
-    height: 40,
     alignItems: "center",
-  },
-
-  label: {
-    backgroundColor: "#dc2626",
-    paddingHorizontal: 10,
-    height: "100%",
-    justifyContent: "center",
-  },
-
-  labelText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 11,
-  },
-
-  box: {
-    flex: 1,
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    borderRadius: 8,
+    marginHorizontal: 14,
+    marginVertical: 10,
     overflow: "hidden",
-    paddingLeft: 10,
+    height: 42,
+    elevation: 2,
+    shadowColor: BrandColors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  badge: {
+    backgroundColor: BrandColors.primary,
+    height: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    gap: 4,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#FFF",
+  },
+  badgeText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  textContainer: {
+    flex: 1,
+    paddingHorizontal: 10,
     justifyContent: "center",
   },
-
-  text: {
-    color: "#fff",
+  headlineText: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "700",
+    color: BrandColors.charcoal,
+  },
+  counterBadge: {
+    paddingRight: 10,
+  },
+  counterText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: BrandColors.textMuted,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: BrandColors.textSecondary,
+    fontWeight: "500",
   },
 });

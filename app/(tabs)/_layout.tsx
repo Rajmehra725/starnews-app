@@ -1,126 +1,143 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import React from "react";
+import { View, Platform, StyleSheet } from "react-native";
+import { Tabs } from "expo-router";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import { BrandColors } from "@/constants/theme";
+import { HapticTab } from "@/components/haptic-tab";
 
-import { HapticTab } from '@/components/haptic-tab';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+function TabBarIndicator({ focused }: { focused: boolean }) {
+  if (!focused) return null;
+  return <View style={styles.topIndicator} />;
+}
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarActiveTintColor: "#38bdf8",
-        tabBarInactiveTintColor: "#94a3b8",
-
+        tabBarActiveTintColor: BrandColors.primary,
+        tabBarInactiveTintColor: "#8C93A0",
         tabBarStyle: {
-          backgroundColor: "#0f172a",
-          borderTopWidth: 0,
-          height: 65,
-          paddingBottom: 5,
-          paddingTop: 5,
+          backgroundColor: "#FFFFFF",
+          height: Platform.OS === "ios" ? 82 : 64,
+          paddingBottom: Platform.OS === "ios" ? 22 : 8,
+          paddingTop: 8,
+          borderTopWidth: 1,
+          borderTopColor: "#E5E7EB",
+          elevation: 10,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
         },
-
         tabBarLabelStyle: {
-          fontSize: 12,
-          marginBottom: 4,
+          fontSize: 10,
+          fontWeight: "800",
+          marginTop: 2,
         },
       }}
     >
-
-      {/* 🏠 Home - Newspaper / News Feed */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "newspaper-variant" : "newspaper-variant-outline"}
-              size={size}
-              color={color}
-            />
+          title: "मुख्य (Home)",
+          tabBarIcon: ({ color, focused }) => (
+            <View style={styles.iconWrapper}>
+              <TabBarIndicator focused={focused} />
+              <MaterialCommunityIcons
+                name={focused ? "newspaper-variant" : "newspaper-variant-outline"}
+                size={22}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
 
-      {/* 📂 Categories - Folder / Sections */}
       <Tabs.Screen
         name="categories"
         options={{
-          title: 'Categories',
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "view-grid" : "view-grid-outline"}
-              size={size}
-              color={color}
-            />
+          title: "वीडियो (Videos)",
+          tabBarIcon: ({ color, focused }) => (
+            <View style={styles.iconWrapper}>
+              <TabBarIndicator focused={focused} />
+              <MaterialCommunityIcons
+                name={focused ? "youtube-tv" : "television-play"}
+                size={22}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
 
-      {/* 🔥 Trending - Viral / Hot News */}
-    <Tabs.Screen
-  name="trending"
-  options={{
-    title: 'Trending',
-    tabBarIcon: ({ color, size }) => (
-      <MaterialCommunityIcons
-        name="fire"
-        size={size}
-        color={color}
-      />
-    ),
-  }}
-/>
-
-      {/* 📺 Live News */}
       <Tabs.Screen
-        name="live"
+        name="trending"
         options={{
-          title: 'Live',
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "broadcast" : "broadcast-off"}
-              size={size}
-              color={color}
-            />
+          title: "ट्रेंडिंग (Top)",
+          tabBarIcon: ({ color, focused }) => (
+            <View style={styles.iconWrapper}>
+              <TabBarIndicator focused={focused} />
+              <Ionicons
+                name={focused ? "flame" : "flame-outline"}
+                size={22}
+                color={focused ? BrandColors.primary : color}
+              />
+            </View>
           ),
         }}
       />
 
-      {/* 🔔 Notifications - Alerts */}
       <Tabs.Screen
-        name="notifications"
+        name="epaper"
         options={{
-          title: 'Alerts',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? "notifications" : "notifications-outline"}
-              size={size}
-              color={color}
-            />
+          title: "ई-पेपर (E-Paper)",
+          tabBarIcon: ({ color, focused }) => (
+            <View style={styles.iconWrapper}>
+              <TabBarIndicator focused={focused} />
+              <MaterialCommunityIcons
+                name={focused ? "book-open-page-variant" : "book-open-page-variant-outline"}
+                size={22}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
 
-      {/* ⚙️ Settings */}
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? "settings" : "settings-outline"}
-              size={size}
-              color={color}
-            />
+          title: "ब्यूरो (Bureau)",
+          tabBarIcon: ({ color, focused }) => (
+            <View style={styles.iconWrapper}>
+              <TabBarIndicator focused={focused} />
+              <Ionicons
+                name={focused ? "person-circle" : "person-circle-outline"}
+                size={22}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
-
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  topIndicator: {
+    position: "absolute",
+    top: -8,
+    width: 20,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: BrandColors.primary,
+  },
+});

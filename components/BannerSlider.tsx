@@ -1,22 +1,25 @@
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   Dimensions,
   Image,
+  ActivityIndicator,
+  TouchableOpacity,
+  Linking,
 } from "react-native";
-import { useEffect, useState } from "react";
-import axios from "axios";
 import Carousel from "react-native-reanimated-carousel";
-import { Video ,ResizeMode} from "expo-av";
+import { Video, ResizeMode } from "expo-av";
+import { BrandColors, Shadows } from "@/constants/theme";
+import { apiClient, getFullMediaUrl, BannerItem } from "@/_services/api";
 
 const { width } = Dimensions.get("window");
 
-const API = "https://starnewsbackend.onrender.com/api/banners";
-const BASE = "https://starnewsbackend.onrender.com";
-
 export default function BannerSlider() {
-  const [banners, setBanners] = useState<any[]>([]);
+  const [banners, setBanners] = useState<BannerItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     fetchBanners();
@@ -24,109 +27,142 @@ export default function BannerSlider() {
 
   const fetchBanners = async () => {
     try {
-      const res = await axios.get(API);
-      setBanners(res.data);
+      const res = await apiClient.get<BannerItem[]>("/api/banners");
+      const data = Array.isArray(res.data) ? res.data : [];
+      setBanners(data);
     } catch (e) {
-      console.log("Banner error", e);
+      console.log("Banner Error:", e);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getUrl = (banner: any) => {
-    const file = banner.url || banner.image;
-    return file?.startsWith("http") ? file : `${BASE}${file}`;
+  const getUrl = (banner: BannerItem) => {
+    return getFullMediaUrl(banner.url || banner.image);
   };
 
-  if (banners.length === 0) return null;
+  if (loading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="small" color={BrandColors.primary} />
+      </View>
+    );
+  }
+
+  if (!banners.length) return null;
 
   return (
-    <View style={styles.wrapper}>
-      
-      {/* AD TEXT */}
-      <Text style={styles.adText}>ADVERTISEMENT</Text>
+    <View style={styles.container}>
+      <View style={styles.headerRow}>
+        <View style={styles.labelBadge}>
+          <Text style={styles.labelText}>SPONSORED</Text>
+        </View>
+        <View style={styles.dotsRow}>
+          {banners.map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                i === activeIndex ? styles.activeDot : styles.inactiveDot,
+              ]}
+            />
+          ))}
+        </View>
+      </View>
 
       <Carousel
         loop
         autoPlay
-        autoPlayInterval={2500}
-        width={width * 0.92}
-        height={120}
+        autoPlayInterval={5000}
+        scrollAnimationDuration={900}
+        width={width - 28}
+        height={165}
         data={banners}
-        scrollAnimationDuration={1000}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            
-            {/* 🎥 VIDEO */}
-            {item.type === "video" ? (
-              <Video
-                source={{ uri: getUrl(item) }}
-                style={styles.media}
-               resizeMode={ResizeMode.COVER}
-                shouldPlay
-                isLooping
-                isMuted
-              />
-            ) : (
-              <Image
-                source={{ uri: getUrl(item) }}
-                style={styles.media}
-              />
-            )}
-
-            {/* 📊 Overlay */}
-            <View style={styles.overlay}>
-              <Text style={styles.overlayText}>❤️ {item.likes}</Text>
-              <Text style={styles.overlayText}>🔁 {item.shares}</Text>
-              <Text style={styles.overlayText}>👁️ {item.views}</Text>
+        onSnapToItem={(index) => setActiveIndex(index)}
+        renderItem={({ item }) => {
+          const mediaUrl = getUrl(item);
+          return (
+            <View style={styles.card}>
+              {item.type === "video" ? (
+                <Video
+                  source={{ uri: mediaUrl }}
+                  style={styles.media}
+                  shouldPlay
+                  isMuted
+                  isLooping
+                  resizeMode={ResizeMode.COVER}
+                />
+              ) : (
+                <Image
+                  source={{ uri: mediaUrl }}
+                  style={styles.media}
+                  resizeMode="cover"
+                />
+              )}
             </View>
-
-          </View>
-        )}
+          );
+        }}
       />
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    marginVertical: 10,
+  container: {
+    marginHorizontal: 14,
+    marginVertical: 8,
+  },
+  headerRow: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+    paddingHorizontal: 2,
   },
-
-  adText: {
-    color: "#9ca3af",
-    fontSize: 10,
-    alignSelf: "flex-start",
-    marginLeft: 10,
-    marginBottom: 4,
+  labelBadge: {
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 3,
   },
-
+  labelText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: BrandColors.textMuted,
+    letterSpacing: 0.6,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  dot: {
+    height: 4,
+    borderRadius: 2,
+  },
+  activeDot: {
+    width: 14,
+    backgroundColor: BrandColors.primary,
+  },
+  inactiveDot: {
+    width: 4,
+    backgroundColor: BrandColors.border,
+  },
   card: {
-    width: "100%",
-    borderRadius: 10,
+    width: width - 28,
+    height: 165,
+    borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: "#1e293b",
+    backgroundColor: "#1F2937",
+    ...Shadows.sm,
   },
-
   media: {
     width: "100%",
-    height: 120,
+    height: "100%",
   },
-
-  overlay: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    flexDirection: "row",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderTopLeftRadius: 8,
-    gap: 8,
-  },
-
-  overlayText: {
-    color: "#fff",
-    fontSize: 10,
+  loaderContainer: {
+    height: 60,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

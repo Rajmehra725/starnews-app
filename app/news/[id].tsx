@@ -4,76 +4,86 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
   Dimensions,
   TextInput,
   ActivityIndicator,
-  Linking,
+  Share,
+  Platform,
+  Alert,
 } from "react-native";
-
-
-import axios from "axios";
-import { useLocalSearchParams } from "expo-router";
+import { Image } from "expo-image";
+import { router, useLocalSearchParams } from "expo-router";
 import { io } from "socket.io-client";
-import Swiper from "react-native-swiper";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import * as Speech from "expo-speech";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import Advertisement from "@/components/Advertisement";
+import { BrandColors, Shadows } from "@/constants/theme";
+import {
+  apiClient,
+  API_BASE_URL,
+  getFullMediaUrl,
+  formatTimeAgo,
+  formatMetricCount,
+  NewsArticle,
+  NewsComment,
+} from "@/_services/api";
+import NewsCard from "@/components/NewsCard";
 
 const { width } = Dimensions.get("window");
-const COLORS = {
-  primary: "#dc2626",
-  dark: "#111827",
-  light: "#f3f4f6",
-  white: "#ffffff",
-  gray: "#6b7280",
-};
 
-const scale = (size: number): number => (width / 375) * size;
-
-const API = "https://starnewsbackend.onrender.com/api/news";
-const SOCKET_URL = "https://starnewsbackend.onrender.com";
-
-let socket: any;
+const SAVED_ARTICLES_KEY = "@starnews_saved_articles";
 
 export default function NewsDetail() {
   const params = useLocalSearchParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
-  const [news, setNews] = useState<any>(null);
-  const [comments, setComments] = useState<any[]>([]);
-  const [text, setText] = useState("");
+  const [article, setArticle] = useState<NewsArticle | null>(null);
+  const [comments, setComments] = useState<NewsComment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [commenterName, setCommenterName] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
+  const [viewsCount, setViewsCount] = useState(0);
+  const [sharesCount, setSharesCount] = useState(0);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
+  const [relatedNews, setRelatedNews] = useState<NewsArticle[]>([]);
 
   const viewedRef = useRef(false);
 
-  /* ⏱ TIME AGO */
-  const timeAgo = (date: string) => {
-    if (!date) return "";
-    const sec = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-    if (sec < 60) return "Just now";
-    if (sec < 3600) return Math.floor(sec / 60) + "m ago";
-    if (sec < 86400) return Math.floor(sec / 3600) + "h ago";
-    return Math.floor(sec / 86400) + "d ago";
-  };
-
-  /* FETCH */
+  /* FETCH NEWS DETAILS */
   const fetchData = async () => {
     try {
       setLoading(true);
-
-      const [newsRes, commentRes] = await Promise.all([
-        axios.get(API),
-        axios.get(`${API}/${id}/comments`).catch(() => ({ data: [] })),
+      const [newsRes, commentsRes] = await Promise.all([
+        apiClient.get<NewsArticle[]>("/api/news"),
+        apiClient.get<NewsComment[]>(`/api/news/${id}/comments`).catch(() => ({ data: [] })),
       ]);
 
-      const found = newsRes.data.find((n: any) => n._id === id);
+      const found = (newsRes.data || []).find((n) => n._id === id);
 
-      setNews(found || null);
-      setComments(commentRes.data || []);
+      if (found) {
+        setArticle(found);
+        setLikesCount(found.likes || 0);
+        setViewsCount(found.views || 0);
+        setSharesCount(found.shares || 0);
+
+        // Related stories (same category or recent)
+        const related = (newsRes.data || [])
+          .filter((n) => n._id !== id && (n.category === found.category || !found.category))
+          .slice(0, 4);
+        setRelatedNews(related);
+      }
+
+      setComments(Array.isArray(commentsRes.data) ? commentsRes.data : []);
     } catch (err) {
-      console.log("API ERROR");
+      console.log("Fetch News Detail Error:", err);
     } finally {
       setLoading(false);
     }
@@ -82,523 +92,890 @@ export default function NewsDetail() {
   useEffect(() => {
     if (!id) return;
     fetchData();
+
+    // Check if saved
+    AsyncStorage.getItem(SAVED_ARTICLES_KEY).then((raw) => {
+      if (raw) {
+        try {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            setIsBookmarked(list.some((item) => item._id === id));
+          }
+        } catch (e) {}
+      }
+    });
   }, [id]);
 
-  /* SOCKET */
-  useEffect(() => {
-    socket = io(SOCKET_URL);
-
-    socket.on("commentAdded", (c: any) => {
-      setComments((prev) => [c, ...prev]);
-    });
-
-    socket.on("likeUpdated", ({ newsId, likes }: any) => {
-      if (newsId === id) setNews((p: any) => ({ ...p, likes }));
-    });
-
-    socket.on("viewsUpdated", ({ newsId, views }: any) => {
-      if (newsId === id) setNews((p: any) => ({ ...p, views }));
-    });
-
-    return () => socket.disconnect();
-  }, [id]);
-
-  /* VIEW */
+  /* VIEW TRACKING */
   useEffect(() => {
     if (!id || viewedRef.current) return;
-
     viewedRef.current = true;
 
-    axios.post(`${API}/${id}/view`, { userId: "guest" }).catch(() => {});
-  }, [id]);
-
-  /* ACTIONS */
-  const handleLike = async () => {
-    await axios.post(`${API}/${id}/like`, { userId: "guest" }).catch(() => {});
-  };
-
-  const handleShare = async () => {
-    await axios.post(`${API}/${id}/share`).catch(() => {});
-  };
-
-  const handleComment = async () => {
-    if (!text) return;
-
-    await axios
-      .post(`${API}/${id}/comment`, {
-        text,
-        visitorId: "guest",
+    apiClient
+      .post(`/api/news/${id}/view`, { userId: `reader_${Date.now()}` })
+      .then((res) => {
+        if (res.data?.views) setViewsCount(res.data.views);
       })
       .catch(() => {});
+  }, [id]);
 
-    setText("");
+  /* REALTIME SOCKET */
+  useEffect(() => {
+    const socket = io(API_BASE_URL, { transports: ["websocket"] });
+
+    socket.emit("joinNews", id);
+
+    socket.on("likeUpdated", (data: { newsId: string; likes: number }) => {
+      if (data.newsId === id) setLikesCount(data.likes);
+    });
+
+    socket.on("viewsUpdated", (data: { newsId: string; views: number }) => {
+      if (data.newsId === id) setViewsCount(data.views);
+    });
+
+    socket.on("shareUpdated", (data: { newsId: string; shares: number }) => {
+      if (data.newsId === id) setSharesCount(data.shares);
+    });
+
+    socket.on("newComment", (data: { newsId: string; comment: NewsComment }) => {
+      if (data.newsId === id) {
+        setComments((prev) => [data.comment, ...prev]);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [id]);
+
+  // Clean speech when leaving screen
+  useEffect(() => {
+    return () => {
+      Speech.stop();
+    };
+  }, []);
+
+  /* LIKE ACTION */
+  const handleLike = async () => {
+    try {
+      const nextLiked = !isLiked;
+      setIsLiked(nextLiked);
+      setLikesCount((prev) => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
+
+      await apiClient.post(`/api/news/${id}/like`, { userId: "app_reader" });
+    } catch (err) {
+      console.log("Like error:", err);
+    }
+  };
+
+  /* SHARE ACTION */
+  const handleShare = async () => {
+    if (!article) return;
+    try {
+      await Share.share({
+        title: article.title,
+        message: `🔴 ${article.title}\n\nपूरी खबर पढ़ें स्टार न्यूज़ नेटवर्क्स पर:\nhttps://starnewsnetworks.com/news/${article._id}`,
+      });
+
+      apiClient.post(`/api/news/${id}/share`, { userId: "app_reader" }).catch(() => {});
+      setSharesCount((prev) => prev + 1);
+    } catch (e) {
+      console.log("Share error:", e);
+    }
+  };
+
+  /* BOOKMARK ACTION */
+  const handleToggleBookmark = async () => {
+    if (!article) return;
+    try {
+      const raw = await AsyncStorage.getItem(SAVED_ARTICLES_KEY);
+      let list: NewsArticle[] = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(list)) list = [];
+
+      const exists = list.some((item) => item._id === article._id);
+      let nextList: NewsArticle[];
+      if (exists) {
+        nextList = list.filter((item) => item._id !== article._id);
+        setIsBookmarked(false);
+        Alert.alert("बुकमार्क हटाया गया", "समाचार सहेजी गई सूची से हटा दिया गया है।");
+      } else {
+        nextList = [article, ...list];
+        setIsBookmarked(true);
+        Alert.alert("बुकमार्क सहेजा गया 🔖", "समाचार सहेजे गए अनुभाग में जोड़ दिया गया है।");
+      }
+      await AsyncStorage.setItem(SAVED_ARTICLES_KEY, JSON.stringify(nextList));
+    } catch (e) {
+      console.log("Bookmark error:", e);
+    }
+  };
+
+  /* TEXT TO SPEECH (AUDIO READER) */
+  const toggleSpeech = async () => {
+    if (isPlayingAudio) {
+      await Speech.stop();
+      setIsPlayingAudio(false);
+      return;
+    }
+
+    if (!article) return;
+    const textToRead = `${article.title}. ${article.description || ""}. ${article.content || ""}`;
+
+    setIsPlayingAudio(true);
+    Speech.speak(textToRead, {
+      language: "hi-IN",
+      pitch: 1.0,
+      rate: 0.9,
+      onDone: () => setIsPlayingAudio(false),
+      onError: () => setIsPlayingAudio(false),
+    });
+  };
+
+  /* POST COMMENT */
+  const handlePostComment = async () => {
+    if (!commentText.trim()) {
+      Alert.alert("टिप्पणी लिखें", "कृपया अपनी राय या टिप्पणी दर्ज करें।");
+      return;
+    }
+
+    try {
+      setSubmittingComment(true);
+      const name = commenterName.trim() || "पाठक (Reader)";
+      const res = await apiClient.post(`/api/news/${id}/comment`, {
+        text: commentText.trim(),
+        name,
+        visitorId: `visitor_${Date.now()}`,
+      });
+
+      if (Array.isArray(res.data)) {
+        setComments(res.data);
+      } else {
+        setComments((prev) => [
+          {
+            _id: `c_${Date.now()}`,
+            text: commentText.trim(),
+            name,
+            createdAt: new Date().toISOString(),
+          },
+          ...prev,
+        ]);
+      }
+
+      setCommentText("");
+      Alert.alert("सफलता", "आपकी टिप्पणी प्रकाशित कर दी गई है।");
+    } catch (err) {
+      Alert.alert("त्रुटि", "टिप्पणी सबमिट करने में विफल। पुनः प्रयास करें।");
+    } finally {
+      setSubmittingComment(false);
+    }
   };
 
   if (loading) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#dc2626" />
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={BrandColors.primary} />
+        <Text style={styles.loadingText}>समाचार लोड हो रहा है...</Text>
       </View>
     );
   }
 
-  if (!news) {
-    return <Text style={{ padding: 20 }}>News not found</Text>;
+  if (!article) {
+    return (
+      <SafeAreaView style={styles.centerContainer}>
+        <Ionicons name="alert-circle-outline" size={48} color={BrandColors.primary} />
+        <Text style={styles.notFoundText}>समाचार नहीं मिला (News Not Found)</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backBtnText}>वापस जाएं (Go Back)</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
   }
 
-  const isBreaking =
-    Date.now() - new Date(news.createdAt).getTime() < 2 * 60 * 60 * 1000;
+  const imageUrl = getFullMediaUrl(article.featuredImage || (article.images && article.images[0]));
+  const isBreaking = article.breaking || Date.now() - new Date(article.createdAt).getTime() < 3 * 3600 * 1000;
 
   return (
-    <ScrollView style={styles.container}>
-      
-      {/* HEADER */}
-      <View style={styles.header}>
-        <Text style={styles.logo}>STAR NEWS</Text>
-        <Text style={styles.live}>LIVE</Text>
-      </View>
-
-      {/* IMAGE */}
-      {news.featuredImage && (
-        <Image source={{ uri: news.featuredImage }} style={styles.image} />
-      )}
-
-      {isBreaking && (
-        <View style={styles.breakingBox}>
-          <Text style={styles.breakingText}>BREAKING</Text>
-        </View>
-      )}
-
-      {/* TITLE */}
-      <Text style={styles.title}>{news.title}</Text>
-
-      {/* TIME */}
-      <Text style={styles.time}>
-        {timeAgo(news.createdAt)} •{" "}
-        {new Date(news.createdAt).toLocaleString()}
-      </Text>
-
-      {/* REPORTER */}
-      <View style={styles.reporter}>
-        <Image
-          source={require("@/assets/images/Reporter.jpg")}
-          style={styles.reporterImg}
-        />
-        <View>
-          <Text style={styles.reporterName}>Prakash Shrivastava</Text>
-          <Text style={styles.reporterLoc}>STAR NEWS</Text>
-        </View>
-      </View>
-
-      {/* SOCIAL */}
-    <View style={styles.socialRow}>
-
-  {/* Instagram */}
-  <TouchableOpacity
-    onPress={() =>
-      Linking.openURL(
-        "https://www.instagram.com/reel/DSEzE6VjA1u/?igsh=enR1OGZ0ZmN4enhz"
-      )
-    }
-  >
-    <Ionicons name="logo-instagram" size={22} color="#E1306C" />
-  </TouchableOpacity>
-
-  {/* Facebook */}
-  <TouchableOpacity
-    onPress={() =>
-      Linking.openURL("https://www.facebook.com/share/1Dj3yMqD7R/")
-    }
-  >
-    <Ionicons name="logo-facebook" size={22} color="#1877f2" />
-  </TouchableOpacity>
-
-  {/* YouTube */}
-  <TouchableOpacity
-    onPress={() =>
-      Linking.openURL(
-        "https://youtube.com/@starnewsnetworks88?si=HHAEJevcHq48Fdrh"
-      )
-    }
-  >
-    <Ionicons name="logo-youtube" size={22} color="#ff0000" />
-  </TouchableOpacity>
-
-  {/* Twitter / X */}
-  <TouchableOpacity
-    onPress={() => Linking.openURL("https://x.com/starnews88")}
-  >
-    <Ionicons name="logo-twitter" size={22} color="#000" />
-  </TouchableOpacity>
-
-  {/* WhatsApp */}
-  <TouchableOpacity
-    onPress={() => Linking.openURL("https://wa.me/917987667358")}
-  >
-    <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
-  </TouchableOpacity>
-
-</View>
-
-      {/* DESCRIPTION */}
-      <Text style={styles.desc}>{news.description}</Text>
-
-      {/* AD */}
-      <Advertisement />
-
-      {/* CONTENT */}
-      <Text style={styles.contents}>स्टार पन्ना न्यूज़ ब्यूरो </Text>
-      <Text style={styles.content}>{news.content}</Text>
-
-      {/* SLIDER */}
-      {news.images?.length > 0 && (
-        <Swiper height={230} autoplay>
-          {news.images.map((img: string, i: number) => (
-            <Image key={i} source={{ uri: img }} style={styles.sliderImg} />
-          ))}
-        </Swiper>
-      )}
-
-      {/* 🔥 SECTIONS */}
-      {news.sections?.map((sec: any, i: number) => (
-        <View key={i} style={styles.sectionBox}>
-          
-          {sec.heading && (
-            <Text style={styles.sectionHeading}>{sec.heading}</Text>
-          )}
-
-          {sec.image && (
-            <Image source={{ uri: sec.image }} style={styles.sectionImg} />
-          )}
-
-          <Text style={styles.sectionText}>{sec.content}</Text>
-        </View>
-      ))}
-
-      {/* ACTIONS */}
-      <View style={styles.actions}>
-        <TouchableOpacity onPress={handleLike} style={styles.actionBtn}>
-          <Ionicons name="heart-outline" size={20} />
-          <Text>{news.likes}</Text>
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      {/* Top Navigation Bar */}
+      <View style={styles.navBar}>
+        <TouchableOpacity
+          style={styles.navBtn}
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="arrow-back" size={22} color={BrandColors.charcoal} />
         </TouchableOpacity>
 
-        <View style={styles.actionBtn}>
-          <Ionicons name="eye-outline" size={20} />
-          <Text>{news.views}</Text>
+        <View style={styles.navBrand}>
+          <Text style={styles.navBrandText}>STAR NEWS</Text>
+          <View style={styles.livePill}>
+            <Text style={styles.livePillText}>LIVE</Text>
+          </View>
         </View>
 
-        <TouchableOpacity onPress={handleShare} style={styles.actionBtn}>
-          <Ionicons name="share-social-outline" size={20} />
-          <Text>{news.shares}</Text>
-        </TouchableOpacity>
+        <View style={styles.navActions}>
+          <TouchableOpacity
+            style={styles.navBtn}
+            onPress={() => setFontSizeMultiplier((prev) => (prev === 1 ? 1.2 : prev === 1.2 ? 1.35 : 1))}
+          >
+            <MaterialCommunityIcons name="format-size" size={20} color={BrandColors.charcoal} />
+          </TouchableOpacity>
 
-        <View style={styles.actionBtn}>
-          <Ionicons name="chatbubble-outline" size={20} />
-          <Text>{comments.length}</Text>
+          <TouchableOpacity style={styles.navBtn} onPress={handleToggleBookmark}>
+            <Ionicons
+              name={isBookmarked ? "bookmark" : "bookmark-outline"}
+              size={21}
+              color={isBookmarked ? BrandColors.primary : BrandColors.charcoal}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.navBtn} onPress={handleShare}>
+            <Ionicons name="share-social-outline" size={21} color={BrandColors.charcoal} />
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* COMMENT BOX */}
-      <TextInput
-        placeholder="Write comment..."
-        value={text}
-        onChangeText={setText}
-        style={styles.input}
-      />
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Category & Breaking Headline Banner */}
+        <View style={styles.topMetaContainer}>
+          <View style={styles.categoryPill}>
+            <Text style={styles.categoryPillText}>{(article.category || "विशेष खबर").toUpperCase()}</Text>
+          </View>
+          {isBreaking && (
+            <View style={styles.breakingTag}>
+              <MaterialCommunityIcons name="flash" size={13} color="#FFF" />
+              <Text style={styles.breakingTagText}>BREAKING NEWS</Text>
+            </View>
+          )}
+        </View>
 
-      <TouchableOpacity style={styles.btn} onPress={handleComment}>
-        <Text style={styles.btnText}>Post Comment</Text>
-      </TouchableOpacity>
+        {/* Main Headline */}
+        <Text style={[styles.mainHeadline, { fontSize: 22 * fontSizeMultiplier }]}>
+          {article.title}
+        </Text>
 
-      {/* COMMENTS */}
-      {comments.map((c, i) => (
-        <View key={i} style={styles.comment}>
-          <Text style={styles.commentUser}>User</Text>
-          <Text>{c.text}</Text>
-          <Text style={styles.commentTime}>
-            {timeAgo(c.createdAt)}
+        {/* Bureau & Date Byline */}
+        <View style={styles.bylineCard}>
+          <View style={styles.bureauAvatar}>
+            <MaterialCommunityIcons name="newspaper-variant" size={20} color="#FFF" />
+          </View>
+          <View style={styles.bylineInfo}>
+            <Text style={styles.reporterName}>स्टार न्यूज़ नेटवर्क ब्यूरो</Text>
+            <Text style={styles.publishDate}>
+              प्रकाशित: {new Date(article.createdAt).toLocaleString("hi-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })} • {formatTimeAgo(article.createdAt)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Hero Image */}
+        <View style={styles.imageBox}>
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.heroImage}
+            contentFit="cover"
+            transition={300}
+          />
+        </View>
+
+        {/* Listen to Article Audio Player Bar */}
+        <TouchableOpacity style={styles.audioBar} onPress={toggleSpeech} activeOpacity={0.85}>
+          <View style={styles.audioIconBox}>
+            <Ionicons
+              name={isPlayingAudio ? "pause" : "volume-high"}
+              size={18}
+              color={BrandColors.primary}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.audioTitle}>
+              {isPlayingAudio ? "ऑडियो चल रहा है (Listening...)" : "खबर सुनें (Listen to Article)"}
+            </Text>
+            <Text style={styles.audioSubtitle}>आवाज़ में सुनें पूरी रिपोर्ट</Text>
+          </View>
+          <Ionicons
+            name={isPlayingAudio ? "stop-circle" : "play-circle"}
+            size={24}
+            color={BrandColors.primary}
+          />
+        </TouchableOpacity>
+
+        {/* Metrics Bar */}
+        <View style={styles.statsBar}>
+          <View style={styles.statItem}>
+            <Ionicons name="eye-outline" size={16} color={BrandColors.textSecondary} />
+            <Text style={styles.statText}>{formatMetricCount(viewsCount)} व्यूज</Text>
+          </View>
+
+          <View style={styles.statItem}>
+            <Ionicons name="heart-outline" size={16} color={BrandColors.textSecondary} />
+            <Text style={styles.statText}>{formatMetricCount(likesCount)} लाइक्स</Text>
+          </View>
+
+          <View style={styles.statItem}>
+            <Ionicons name="share-social-outline" size={16} color={BrandColors.textSecondary} />
+            <Text style={styles.statText}>{formatMetricCount(sharesCount)} शेयर्स</Text>
+          </View>
+        </View>
+
+        {/* Short Summary Lead */}
+        {article.description ? (
+          <View style={styles.leadBox}>
+            <Text style={[styles.leadText, { fontSize: 15 * fontSizeMultiplier }]}>
+              {article.description}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Main Content */}
+        {article.content ? (
+          <Text style={[styles.bodyText, { fontSize: 15 * fontSizeMultiplier }]}>
+            {article.content}
           </Text>
+        ) : null}
+
+        {/* Rich Multi-Sections if present */}
+        {article.sections && article.sections.length > 0 && (
+          <View style={styles.sectionsContainer}>
+            {article.sections.map((sec, idx) => (
+              <View key={idx} style={styles.sectionBlock}>
+                {sec.heading ? (
+                  <Text style={[styles.sectionHeading, { fontSize: 17 * fontSizeMultiplier }]}>
+                    {sec.heading}
+                  </Text>
+                ) : null}
+                {sec.image ? (
+                  <Image
+                    source={{ uri: getFullMediaUrl(sec.image) }}
+                    style={styles.sectionImage}
+                    contentFit="cover"
+                  />
+                ) : null}
+                <Text style={[styles.sectionContent, { fontSize: 15 * fontSizeMultiplier }]}>
+                  {sec.content}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Action Button Row */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[styles.actionBtn, isLiked && styles.likedBtn]}
+            onPress={handleLike}
+          >
+            <Ionicons
+              name={isLiked ? "heart" : "heart-outline"}
+              size={20}
+              color={isLiked ? "#DC2626" : BrandColors.charcoal}
+            />
+            <Text style={[styles.actionBtnText, isLiked && styles.likedText]}>
+              {likesCount} लाइक
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionBtn, isBookmarked && styles.bookmarkedBtn]}
+            onPress={handleToggleBookmark}
+          >
+            <Ionicons
+              name={isBookmarked ? "bookmark" : "bookmark-outline"}
+              size={20}
+              color={isBookmarked ? BrandColors.primary : BrandColors.charcoal}
+            />
+            <Text style={[styles.actionBtnText, isBookmarked && styles.bookmarkedText]}>
+              {isBookmarked ? "सहेजा गया" : "सेव करें"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
+            <Ionicons name="share-social" size={20} color={BrandColors.charcoal} />
+            <Text style={styles.actionBtnText}>शेयर करें</Text>
+          </TouchableOpacity>
         </View>
-      ))}
-    </ScrollView>
+
+        {/* Comments Section */}
+        <View style={styles.commentsContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionHeaderBar} />
+            <Text style={styles.sectionHeaderTitle}>
+              पाठक प्रतिक्रिया ({comments.length})
+            </Text>
+          </View>
+
+          {/* Comment Input Box */}
+          <View style={styles.commentInputBox}>
+            <TextInput
+              style={styles.nameInput}
+              placeholder="आपका नाम (Your Name)"
+              placeholderTextColor={BrandColors.textMuted}
+              value={commenterName}
+              onChangeText={setCommenterName}
+            />
+            <TextInput
+              style={styles.commentTextInput}
+              placeholder="इस खबर पर अपनी राय लिखें (Add a comment)..."
+              placeholderTextColor={BrandColors.textMuted}
+              value={commentText}
+              onChangeText={setCommentText}
+              multiline
+            />
+            <TouchableOpacity
+              style={styles.submitCommentBtn}
+              onPress={handlePostComment}
+              disabled={submittingComment}
+            >
+              {submittingComment ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <>
+                  <Text style={styles.submitCommentText}>टिप्पणी भेजें</Text>
+                  <Ionicons name="send" size={14} color="#FFF" />
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Comments List */}
+          {comments.map((comment, index) => (
+            <View key={comment._id || index} style={styles.commentCard}>
+              <View style={styles.commentHeader}>
+                <View style={styles.commentAvatar}>
+                  <Text style={styles.avatarLetter}>
+                    {(comment.name || "P")[0].toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.commentUser}>{comment.name || "पाठक"}</Text>
+                  <Text style={styles.commentTime}>
+                    {comment.createdAt ? formatTimeAgo(comment.createdAt) : "हाल ही में"}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.commentBody}>{comment.text}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Related News Section */}
+        {relatedNews.length > 0 && (
+          <View style={styles.relatedContainer}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionHeaderBar} />
+              <Text style={styles.sectionHeaderTitle}>संबंधित खबरें (RELATED NEWS)</Text>
+            </View>
+            {relatedNews.map((rel) => (
+              <NewsCard key={rel._id} article={rel} variant="compact" />
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-/* 🎨 STYLES */
-export const styles = StyleSheet.create({
-  container: {
+const styles = StyleSheet.create({
+  safe: {
     flex: 1,
-    backgroundColor: COLORS.light,
+    backgroundColor: BrandColors.white,
   },
-
-  loader: {
+  centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: BrandColors.background,
+    padding: 24,
+    gap: 12,
   },
-
-  /* 🔴 HEADER */
-  header: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
+  loadingText: {
+    fontSize: 14,
+    color: BrandColors.textSecondary,
+    fontWeight: "600",
+  },
+  notFoundText: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: BrandColors.charcoal,
+  },
+  backBtn: {
+    backgroundColor: BrandColors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  backBtnText: {
+    color: "#FFF",
+    fontWeight: "700",
+  },
+  navBar: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.border,
+    backgroundColor: BrandColors.white,
+  },
+  navBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#F3F4F6",
     alignItems: "center",
-    elevation: 10,
+    justifyContent: "center",
   },
-
-  logo: {
-    color: COLORS.white,
-    fontSize: scale(24),
-    fontWeight: "900",
-    letterSpacing: 2,
-  },
-
-  live: {
-    backgroundColor: COLORS.white,
-    color: COLORS.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 50,
-    fontWeight: "900",
-    fontSize: scale(12),
-  },
-
-  /* 🖼 HERO IMAGE */
-  image: {
-    width: "100%",
-    height: scale(260),
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-
-  /* 🚨 BREAKING */
-  breakingBox: {
-    position: "absolute",
-    top: scale(210),
-    left: 0,
-    backgroundColor: "#ff0000",
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderTopRightRadius: 10,
-    borderBottomRightRadius: 10,
-    elevation: 10,
-  },
-
-  breakingText: {
-    color: "#fff",
-    fontWeight: "900",
-    fontSize: scale(13),
-    letterSpacing: 1,
-  },
-
-  /* 📰 TITLE */
-  title: {
-    fontSize: scale(30),
-    fontWeight: "900",
-    color: COLORS.dark,
-    paddingHorizontal: 16,
-    marginTop: 16,
-    lineHeight: scale(36),
-  },
-
-  /* ⏱ TIME */
-  time: {
-    color: COLORS.gray,
-    paddingHorizontal: 16,
-    marginTop: 6,
-    fontSize: scale(12),
-  },
-
-  /* 👨‍💼 REPORTER */
-  reporter: {
+  navBrand: {
     flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
     alignItems: "center",
-    backgroundColor: "#fff",
-    marginHorizontal: 14,
-    borderRadius: 14,
-    elevation: 4,
+    gap: 6,
   },
-
-  reporterImg: {
-    width: 50,
-    height: 50,
-    borderRadius: 50,
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-  },
-
-  reporterName: {
+  navBrandText: {
+    fontSize: 15,
     fontWeight: "900",
-    fontSize: scale(16),
+    color: BrandColors.charcoal,
   },
-
-  reporterLoc: {
-    fontSize: scale(12),
-    color: COLORS.gray,
+  livePill: {
+    backgroundColor: BrandColors.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-
-  /* 🌐 SOCIAL */
-  socialRow: {
+  livePillText: {
+    color: "#FFF",
+    fontSize: 9,
+    fontWeight: "900",
+  },
+  navActions: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    marginVertical: 14,
-    backgroundColor: "#fff",
-    paddingVertical: 14,
-    marginHorizontal: 14,
-    borderRadius: 20,
-    elevation: 6,
+    gap: 8,
   },
-
-  /* 📄 DESCRIPTION */
-  desc: {
-    color: COLORS.primary,
+  scrollContent: {
+    paddingBottom: 60,
+  },
+  topMetaContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    gap: 8,
+  },
+  categoryPill: {
+    backgroundColor: BrandColors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  categoryPillText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  breakingTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#B91C1C",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  breakingTagText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  mainHeadline: {
+    fontSize: 22,
     fontWeight: "900",
-    paddingHorizontal: 16,
-    fontSize: scale(16),
-    marginBottom: 8,
+    color: BrandColors.charcoal,
+    lineHeight: 30,
+    paddingHorizontal: 14,
+    paddingTop: 10,
   },
-
-  /* 🧾 CONTENT */
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    fontSize: scale(17),
-    lineHeight: scale(28),
-    color: "#374151",
-    textAlign: "justify",
+  bylineCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
   },
-
-  contents: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 14,
-    fontSize: scale(24),
-    color: COLORS.primary,
-    fontWeight: "900",
-  },
-
-  /* 🎞 SLIDER */
-  sliderImg: {
-    width: width - 24,
-    height: scale(220),
-    borderRadius: 14,
-    marginHorizontal: 12,
-  },
-
-  /* 🧾 SECTION */
-  sectionBox: {
-    backgroundColor: "#fff",
-    marginHorizontal: 14,
-    marginVertical: 12,
-    padding: 16,
+  bureauAvatar: {
+    width: 36,
+    height: 36,
     borderRadius: 18,
-    elevation: 6,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
+    backgroundColor: BrandColors.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
-
-  sectionHeading: {
-    fontSize: scale(19),
-    fontWeight: "900",
-    marginBottom: 6,
-    color: COLORS.dark,
+  bylineInfo: {
+    flex: 1,
   },
-
-  sectionImg: {
+  reporterName: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: BrandColors.charcoal,
+  },
+  publishDate: {
+    fontSize: 11,
+    color: BrandColors.textMuted,
+    marginTop: 2,
+  },
+  imageBox: {
     width: "100%",
-    height: scale(190),
-    borderRadius: 12,
-    marginVertical: 10,
+    height: 240,
+    backgroundColor: "#1F2937",
+    marginBottom: 12,
   },
-
-  sectionText: {
-    fontSize: scale(16),
-    lineHeight: scale(26),
-    color: "#374151",
-    textAlign: "justify",
+  heroImage: {
+    width: "100%",
+    height: "100%",
   },
-
-  /* ❤️ ACTION BAR */
-  actions: {
+  audioBar: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: "#fff",
-    marginTop: 14,
-    paddingVertical: 16,
-    borderRadius: 20,
-    marginHorizontal: 14,
-    elevation: 6,
-  },
-
-  actionBtn: {
     alignItems: "center",
-    backgroundColor: "#f9fafb",
-    padding: 10,
-    borderRadius: 12,
-  },
-
-  /* ✍️ INPUT */
-  input: {
+    backgroundColor: "#FFF5F5",
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#FECACA",
+    borderRadius: 10,
     marginHorizontal: 14,
-    marginTop: 14,
-    borderRadius: 16,
-    padding: 14,
-    backgroundColor: "#fff",
+    marginBottom: 14,
+    padding: 10,
+    gap: 10,
   },
-
-  /* 🔴 BUTTON */
-  btn: {
-    backgroundColor: COLORS.primary,
-    marginHorizontal: 14,
-    marginTop: 12,
-    padding: 16,
-    borderRadius: 20,
+  audioIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#FEE2E2",
     alignItems: "center",
-    elevation: 6,
+    justifyContent: "center",
   },
-
-  btnText: {
-    color: "#fff",
-    fontWeight: "900",
-    fontSize: scale(16),
-    letterSpacing: 1,
+  audioTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: BrandColors.primaryDark,
   },
-
-  /* 💬 COMMENTS */
-  comment: {
-    backgroundColor: "#fff",
+  audioSubtitle: {
+    fontSize: 11,
+    color: BrandColors.textSecondary,
+  },
+  statsBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingVertical: 10,
     marginHorizontal: 14,
-    marginTop: 12,
-    padding: 16,
-    borderRadius: 16,
-    elevation: 3,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.primary,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: BrandColors.borderLight,
+    marginBottom: 14,
   },
-
-  commentUser: {
+  statItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  statText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: BrandColors.textSecondary,
+  },
+  leadBox: {
+    backgroundColor: "#F8FAFC",
+    borderLeftWidth: 4,
+    borderLeftColor: BrandColors.primary,
+    padding: 12,
+    marginHorizontal: 14,
+    marginBottom: 14,
+    borderRadius: 4,
+  },
+  leadText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: BrandColors.charcoal,
+    lineHeight: 22,
+  },
+  bodyText: {
+    fontSize: 15,
+    color: "#27272A",
+    lineHeight: 25,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+  sectionsContainer: {
+    paddingHorizontal: 14,
+    gap: 16,
+    marginBottom: 16,
+  },
+  sectionBlock: {
+    gap: 8,
+  },
+  sectionHeading: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: BrandColors.charcoal,
+    lineHeight: 23,
+  },
+  sectionImage: {
+    width: "100%",
+    height: 190,
+    borderRadius: 8,
+  },
+  sectionContent: {
+    fontSize: 15,
+    color: "#27272A",
+    lineHeight: 24,
+  },
+  actionRow: {
+    flexDirection: "row",
+    paddingHorizontal: 14,
+    gap: 12,
+    marginVertical: 14,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F3F4F6",
+    paddingVertical: 11,
+    borderRadius: 8,
+    gap: 6,
+  },
+  likedBtn: {
+    backgroundColor: "#FEE2E2",
+  },
+  bookmarkedBtn: {
+    backgroundColor: "#FEF2F2",
+    borderColor: BrandColors.primaryLight,
+  },
+  actionBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: BrandColors.charcoal,
+  },
+  likedText: {
+    color: "#DC2626",
+  },
+  bookmarkedText: {
+    color: BrandColors.primary,
+  },
+  commentsContainer: {
+    paddingHorizontal: 14,
+    marginTop: 18,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  sectionHeaderBar: {
+    width: 4,
+    height: 18,
+    borderRadius: 2,
+    backgroundColor: BrandColors.primary,
+  },
+  sectionHeaderTitle: {
+    fontSize: 15,
     fontWeight: "900",
+    color: BrandColors.charcoal,
+    letterSpacing: 0.5,
+  },
+  commentInputBox: {
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    gap: 10,
+  },
+  nameInput: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: BrandColors.charcoal,
+  },
+  commentTextInput: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: BrandColors.charcoal,
+    minHeight: 65,
+    textAlignVertical: "top",
+  },
+  submitCommentBtn: {
+    backgroundColor: BrandColors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 6,
+    gap: 6,
+  },
+  submitCommentText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  commentCard: {
+    backgroundColor: "#F8FAFC",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: BrandColors.borderLight,
+    marginBottom: 10,
+  },
+  commentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 6,
   },
-
-  commentTime: {
-    fontSize: scale(11),
-    color: COLORS.gray,
-    marginTop: 6,
+  commentAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: BrandColors.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
-
-  /* ➖ DIVIDER */
-  divider: {
-    height: 1,
-    backgroundColor: "#e5e7eb",
-    marginVertical: 12,
-    marginHorizontal: 16,
+  avatarLetter: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  commentUser: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: BrandColors.charcoal,
+  },
+  commentTime: {
+    fontSize: 10,
+    color: BrandColors.textMuted,
+  },
+  commentBody: {
+    fontSize: 13,
+    color: "#374151",
+    lineHeight: 18,
+  },
+  relatedContainer: {
+    marginTop: 20,
   },
 });

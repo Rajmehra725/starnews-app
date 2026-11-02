@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "460234331457",
+    "project_id": "star-news-networks",
+    "storage_bucket": "star-news-networks.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:460234331457:android:3b9ca3923a08e7d92a7dc0",
+        "android_client_info": {
+          "package_name": "com.prakash.starnewsnetworks2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnOwX6PacAsuO2WB4nSIPdrnm5NzqlYBc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
