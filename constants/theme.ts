@@ -1,39 +1,61 @@
 /**
  * Star News Networks - Brand Theme & Design Tokens
- * BRAND: STAR NEWS NETWORKS
- * TAGLINE: LOCAL | LIVE | TRUSTED
+ * BRAND: STAR NEWS
+ * PARENT BRAND: STAR NEWS NETWORKS
+ * TAGLINE: Local • Live • Trusted (लोकल • लाइव • भरोसेमंद)
+ * PRIMARY COVERAGE: Panna, Madhya Pradesh
+ * REGIONAL COVERAGE: Satna, Chhatarpur & Bundelkhand
  */
 
+export const BrandIdentity = {
+  name: "Star News",
+  fullName: "Star News Networks",
+  tagline: "Local • Live • Trusted",
+  taglineHindi: "लोकल • लाइव • भरोसेमंद",
+  primaryLocation: "पन्ना (Panna, MP)",
+  primaryRegion: "मध्य प्रदेश (Madhya Pradesh)",
+  bureauChief: "प्रकाश श्रीवास्तव",
+  bureauTitle: "जिला ब्यूरो प्रमुख, पन्ना",
+  helplinePhone: "+91 7987667358",
+  helplineDisplay: "7987667358",
+  helplineEmail: "starnewsnetworks1988@gmail.com",
+};
+
 export const BrandColors = {
-  // Primary Brand Colors
-  primary: "#E31E24",       // Signature Indian News Red
-  primaryDark: "#B5121B",   // Deep Red / Header & Accents
+  // Signature Aaj Tak-grade News Red & Accents
+  primary: "#E50914",       // Vivid Signature Indian News Red
+  primaryDark: "#B71C1C",   // Deep Editorial Header Red
+  primaryDeep: "#7F1D1D",   // Regal Crimson
   primaryLight: "#FEE2E2",  // Soft Red Tint
-  primaryGhost: "#FFF1F2",  // Subdued Red Background
+  primaryGhost: "#FFF5F5",  // Subdued Red Background
   
-  // Neutral Colors
+  // Neutral Colors & Surfaces
   white: "#FFFFFF",
-  background: "#F5F6F8",    // Crisp light background
+  background: "#F8FAFC",    // Crisp editorial slate background
+  surfaceLight: "#FFFFFF",
   cardBg: "#FFFFFF",
-  charcoal: "#171717",      // Primary Text
-  textSecondary: "#525965", // Readable secondary text
-  textMuted: "#8C93A0",     // Timestamps & metadata
-  border: "#E5E7EB",        // Clean divider lines
-  borderLight: "#F0F2F5",
+  charcoal: "#0F172A",      // Primary high-contrast text
+  textSecondary: "#475569", // Readable editorial secondary text
+  textMuted: "#64748B",     // Timestamps & metadata
+  border: "#E2E8F0",        // Clean divider lines
+  borderLight: "#F1F5F9",
   
-  // Status & Accents
-  liveRed: "#DC2626",
-  liveBadge: "#B91C1C",
+  // Status, Live & Broadcast Accents
+  liveRed: "#EF4444",       // Pulsing live indicator
+  liveBadge: "#DC2626",
+  breakingFlash: "#E11D48",
   success: "#16A34A",
   warning: "#D97706",
   info: "#2563EB",
-  gold: "#EAB308",
+  gold: "#F59E0B",
   
   // Dark mode / Overlays
   overlay: "rgba(0,0,0,0.6)",
   overlayHeavy: "rgba(0,0,0,0.85)",
-  darkSurface: "#18181B",
-  darkCard: "#27272A",
+  overlayLight: "rgba(0,0,0,0.35)",
+  darkSurface: "#090D16",
+  darkCard: "#131B2E",
+  darkBorder: "#1E293B",
 };
 
 export const Colors = {
@@ -46,39 +68,52 @@ export const Colors = {
     tabIconSelected: BrandColors.primary,
   },
   dark: {
-    text: "#F4F4F5",
-    background: "#09090B",
+    text: "#F8FAFC",
+    background: BrandColors.darkSurface,
     tint: BrandColors.primary,
-    icon: "#A1A1AA",
-    tabIconDefault: "#71717A",
-    tabIconSelected: "#EF4444",
+    icon: "#94A3B8",
+    tabIconDefault: "#64748B",
+    tabIconSelected: BrandColors.primary,
   },
 };
 
 export const Typography = {
-  titleLarge: {
+  heroHeadline: {
     fontSize: 22,
+    fontWeight: "900" as const,
+    color: BrandColors.charcoal,
+    lineHeight: 30,
+    letterSpacing: -0.3,
+  },
+  titleLarge: {
+    fontSize: 20,
     fontWeight: "800" as const,
     color: BrandColors.charcoal,
-    lineHeight: 28,
+    lineHeight: 27,
   },
   titleMedium: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700" as const,
     color: BrandColors.charcoal,
     lineHeight: 24,
   },
   headline: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700" as const,
     color: BrandColors.charcoal,
     lineHeight: 22,
   },
   body: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "400" as const,
     color: BrandColors.charcoal,
-    lineHeight: 20,
+    lineHeight: 24,
+  },
+  bodySmall: {
+    fontSize: 13,
+    fontWeight: "400" as const,
+    color: BrandColors.textSecondary,
+    lineHeight: 19,
   },
   caption: {
     fontSize: 12,
@@ -89,30 +124,37 @@ export const Typography = {
   badge: {
     fontSize: 10,
     fontWeight: "800" as const,
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
 };
 
 export const Shadows = {
   sm: {
-    shadowColor: "#000",
+    shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowRadius: 3,
     elevation: 2,
   },
   md: {
-    shadowColor: "#000",
+    shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 4,
   },
   lg: {
-    shadowColor: "#000",
+    shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 8,
+  },
+  brandGlow: {
+    shadowColor: BrandColors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
   },
 };

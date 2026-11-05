@@ -8,11 +8,12 @@ import {
   TouchableOpacity,
   FlatList,
   SafeAreaView,
-  ActivityIndicator,
+  StatusBar,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { BrandColors } from "@/constants/theme";
+import * as Haptics from "expo-haptics";
+import { BrandColors, Shadows } from "@/constants/theme";
 import { NewsArticle } from "@/_services/api";
 import NewsCard from "@/components/NewsCard";
 
@@ -21,6 +22,18 @@ interface SearchModalProps {
   onClose: () => void;
   newsList: NewsArticle[];
 }
+
+const TRENDING_SEARCH_TAGS = [
+  "📍 पन्ना",
+  "💎 हीरा खदान",
+  "अमानगंज",
+  "पवई",
+  "गुन्नौर",
+  "मध्य प्रदेश",
+  "अपराध",
+  "राजनीति",
+  "मौसम",
+];
 
 export default function SearchModal({
   visible,
@@ -38,12 +51,15 @@ export default function SearchModal({
 
   const filteredNews = useMemo(() => {
     if (!query.trim() && selectedCat === "All") return [];
-    
+
+    const cleanQuery = query.replace("📍 ", "").replace("💎 ", "").trim().toLowerCase();
+
     return newsList.filter((item) => {
-      const matchesQuery = query.trim()
-        ? item.title?.toLowerCase().includes(query.toLowerCase()) ||
-          item.description?.toLowerCase().includes(query.toLowerCase()) ||
-          item.content?.toLowerCase().includes(query.toLowerCase())
+      const matchesQuery = cleanQuery
+        ? item.title?.toLowerCase().includes(cleanQuery) ||
+          item.description?.toLowerCase().includes(cleanQuery) ||
+          item.content?.toLowerCase().includes(cleanQuery) ||
+          item.category?.toLowerCase().includes(cleanQuery)
         : true;
 
       const matchesCat =
@@ -62,6 +78,11 @@ export default function SearchModal({
     });
   };
 
+  const handleQuickTagPress = (tag: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setQuery(tag);
+  };
+
   return (
     <Modal
       visible={visible}
@@ -70,13 +91,15 @@ export default function SearchModal({
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.safe}>
+        <StatusBar barStyle="dark-content" />
+
         {/* Search Header */}
         <View style={styles.header}>
           <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color={BrandColors.textSecondary} />
+            <Ionicons name="search" size={18} color={BrandColors.primary} />
             <TextInput
               style={styles.input}
-              placeholder="खोजें... (Search news, topics, location)"
+              placeholder="पन्ना, मध्य प्रदेश या विषय खोजें..."
               placeholderTextColor={BrandColors.textMuted}
               value={query}
               onChangeText={setQuery}
@@ -84,36 +107,45 @@ export default function SearchModal({
               returnKeyType="search"
             />
             {query.length > 0 && (
-              <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity
+                onPress={() => setQuery("")}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <Ionicons name="close-circle" size={18} color={BrandColors.textMuted} />
               </TouchableOpacity>
             )}
           </View>
           <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={styles.cancelText}>रद्द करें</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Categories Bar in Search */}
-        <View style={styles.categoryContainer}>
+        {/* Quick Trending Suggestions Bar */}
+        <View style={styles.trendingContainer}>
+          <View style={styles.trendingHeader}>
+            <MaterialCommunityIcons name="fire" size={14} color={BrandColors.primary} />
+            <Text style={styles.trendingTitle}>लोकप्रिय खोज (Trending):</Text>
+          </View>
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            data={categories}
+            data={TRENDING_SEARCH_TAGS}
             keyExtractor={(item) => item}
-            contentContainerStyle={styles.categoryList}
+            contentContainerStyle={styles.trendingList}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[
-                  styles.catChip,
-                  selectedCat === item && styles.activeCatChip,
+                  styles.trendTag,
+                  query.includes(item.replace("📍 ", "").replace("💎 ", "")) &&
+                    styles.activeTrendTag,
                 ]}
-                onPress={() => setSelectedCat(item)}
+                onPress={() => handleQuickTagPress(item)}
               >
                 <Text
                   style={[
-                    styles.catText,
-                    selectedCat === item && styles.activeCatText,
+                    styles.trendTagText,
+                    query.includes(item.replace("📍 ", "").replace("💎 ", "")) &&
+                      styles.activeTrendTagText,
                   ]}
                 >
                   {item}
@@ -122,6 +154,46 @@ export default function SearchModal({
             )}
           />
         </View>
+
+        {/* Category Filters Bar */}
+        {categories.length > 1 && (
+          <View style={styles.categoryContainer}>
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={categories}
+              keyExtractor={(item) => item}
+              contentContainerStyle={styles.categoryList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.catChip,
+                    selectedCat === item && styles.activeCatChip,
+                  ]}
+                  onPress={() => setSelectedCat(item)}
+                >
+                  <Text
+                    style={[
+                      styles.catText,
+                      selectedCat === item && styles.activeCatText,
+                    ]}
+                  >
+                    {item === "All" ? "सभी श्रेणियां" : item}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
+
+        {/* Results Info Bar */}
+        {filteredNews.length > 0 && (
+          <View style={styles.resultCountBar}>
+            <Text style={styles.resultCountText}>
+              कुल {filteredNews.length} समाचार प्राप्त हुए
+            </Text>
+          </View>
+        )}
 
         {/* Results List */}
         <FlatList
@@ -145,12 +217,12 @@ export default function SearchModal({
               <Text style={styles.emptyTitle}>
                 {query.trim()
                   ? "कोई परिणाम नहीं मिला (No Results Found)"
-                  : "समाचार खोजने के लिए टाइप करें"}
+                  : "स्टार न्यूज़ नेटवर्क में खोजें"}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {query.trim()
-                  ? `"${query}" के लिए कोई खबर नहीं मिली। कृपया कोई दूसरा कीवर्ड खोजें।`
-                  : "शीर्षक, स्थान या विषय लिखकर खोजें"}
+                  ? `"${query}" के लिए कोई खबर नहीं मिली। कृपया कोई अन्य शब्द खोजें।`
+                  : "पन्ना, मध्य प्रदेश, अपराध, राजनीति या स्थानीय समाचार कीवर्ड टाइप करें"}
               </Text>
             </View>
           }
@@ -184,6 +256,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 44,
     gap: 8,
+    borderWidth: 1,
+    borderColor: BrandColors.borderLight,
   },
   input: {
     flex: 1,
@@ -192,16 +266,56 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   cancelBtn: {
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
   cancelText: {
     fontSize: 14,
     fontWeight: "700",
     color: BrandColors.primary,
   },
-  categoryContainer: {
+  trendingContainer: {
     backgroundColor: BrandColors.white,
     paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.borderLight,
+  },
+  trendingHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 14,
+    marginBottom: 6,
+  },
+  trendingTitle: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: BrandColors.textSecondary,
+  },
+  trendingList: {
+    paddingHorizontal: 14,
+    gap: 6,
+  },
+  trendTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: "#FEE2E2",
+  },
+  activeTrendTag: {
+    backgroundColor: BrandColors.primary,
+  },
+  trendTagText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: BrandColors.primaryDark,
+  },
+  activeTrendTagText: {
+    color: "#FFF",
+  },
+  categoryContainer: {
+    backgroundColor: BrandColors.white,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: BrandColors.borderLight,
   },
@@ -211,8 +325,8 @@ const styles = StyleSheet.create({
   },
   catChip: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical: 5,
+    borderRadius: 14,
     backgroundColor: "#F3F4F6",
     borderWidth: 1,
     borderColor: BrandColors.border,
@@ -222,15 +336,27 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.primaryDark,
   },
   catText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     color: BrandColors.textSecondary,
   },
   activeCatText: {
     color: "#FFF",
   },
+  resultCountBar: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: "#F8FAFC",
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.borderLight,
+  },
+  resultCountText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: BrandColors.textSecondary,
+  },
   resultsList: {
-    paddingVertical: 12,
+    paddingVertical: 8,
     flexGrow: 1,
   },
   emptyContainer: {
@@ -241,13 +367,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   emptyTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "800",
     color: BrandColors.charcoal,
     textAlign: "center",
   },
   emptySubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: BrandColors.textSecondary,
     textAlign: "center",
     lineHeight: 18,

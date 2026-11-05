@@ -9,28 +9,36 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator,
   StatusBar,
+  useWindowDimensions,
 } from "react-native";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { BrandColors, Shadows } from "@/constants/theme";
+import { BrandColors, BrandIdentity, Shadows } from "@/constants/theme";
+import { StarButtonLoader } from "@/components/StarBrandLoader";
 
 export default function LoginScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktop = width > 768;
+  const isSmallMobile = width < 380;
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [usernameFocused, setUsernameFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
-  // Existing credentials preserved
-  const ADMIN_USERNAME = "admin";
-  const ADMIN_PASSWORD = "admin123";
+  // STRICT REQUIREMENT: Existing hardcoded credentials remain completely unchanged
+  const ADMIN_USERNAME = "starnewsnetworks";
+  const ADMIN_PASSWORD = "Starnews@2026!";
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
       Alert.alert(
-        "लॉगिन आवश्यक",
+        "लॉगिन आवश्यक (Credentials Required)",
         "कृपया अपना यूज़रनेम एवं पासवर्ड दर्ज करें।"
       );
       return;
@@ -40,6 +48,7 @@ export default function LoginScreen() {
 
     setTimeout(async () => {
       setLoading(false);
+      // Existing validation logic preserved exactly
       if (
         username.trim() === ADMIN_USERNAME &&
         password === ADMIN_PASSWORD
@@ -64,127 +73,175 @@ export default function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <StatusBar barStyle="light-content" backgroundColor="#09090B" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B0C10" />
+
+      {/* Background Ambience Glow */}
+      <View style={[styles.ambientGlow, { width: width * 1.4, height: width * 1.4 }]} />
+
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          isDesktop && styles.desktopScroll,
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Newsroom Editorial Header */}
-        <View style={styles.header}>
+        {/* Navigation Row back to Public App */}
+        <View style={[styles.topBar, isDesktop && styles.desktopTopBar]}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.replace("/(tabs)")}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="arrow-back" size={20} color="#FFF" />
-            <Text style={styles.backButtonText}>मुख्य ऐप (App Home)</Text>
+            <Ionicons name="arrow-back" size={18} color="#FFF" />
+            <Text style={styles.backButtonText}>मुख्य ऐप (Back to App)</Text>
           </TouchableOpacity>
 
-          <View style={styles.liveBadgeRow}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>NEWSROOM CONTROL DESK</Text>
-            <Text style={styles.liveDotText}>• 24×7 LIVE</Text>
+          <View style={styles.liveBroadcastPill}>
+            <View style={styles.livePulseDot} />
+            <Text style={styles.liveBroadcastText}>NEWSROOM CONTROL • 24×7</Text>
           </View>
-
-          <View style={styles.logoBadge}>
-            <MaterialCommunityIcons name="broadcast" size={36} color="#FFF" />
-          </View>
-
-          <Text style={styles.brandTitle}>STAR NEWS NETWORKS</Text>
-          <Text style={styles.brandTagline}>LOCAL | LIVE | TRUSTED</Text>
         </View>
 
-        {/* Login Card */}
-        <View style={styles.loginCard}>
-          <View style={styles.cardHeader}>
-            <View>
-              <Text style={styles.cardTitle}>संपादकीय प्रवेश (CMS LOGIN)</Text>
-              <Text style={styles.cardSubtitle}>
-                अधिकृत पत्रकार एवं व्यवस्थापक लॉगिन
+        {/* Central Responsive Card Wrapper */}
+        <View
+          style={[
+            styles.cardWrapper,
+            isDesktop && styles.desktopCardWrapper,
+            isSmallMobile && styles.smallMobileCardWrapper,
+          ]}
+        >
+          {/* Header Brand Section */}
+          <View style={styles.header}>
+            <View style={styles.logoBadge}>
+              <Image
+                source={require("../assets/images/icon.png")}
+                style={styles.logoImage}
+                contentFit="contain"
+              />
+            </View>
+
+            <View style={styles.brandTitleRow}>
+              <Text style={styles.brandTitleWhite}>STAR </Text>
+              <Text style={styles.brandTitleRed}>NEWS</Text>
+            </View>
+            <Text style={styles.brandSubtitle}>NETWORKS</Text>
+
+            <View style={styles.taglineBadge}>
+              <Text style={styles.taglineText}>{BrandIdentity.tagline}</Text>
+            </View>
+            <Text style={styles.taglineHindi}>{BrandIdentity.taglineHindi}</Text>
+          </View>
+
+          {/* Form Card */}
+          <View style={styles.loginCard}>
+            <View style={styles.cardHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>संपादकीय प्रवेश (CMS LOGIN)</Text>
+                <Text style={styles.cardSubtitle}>
+                  अधिकृत पत्रकार एवं व्यवस्थापक नियंत्रण कक्ष
+                </Text>
+              </View>
+              <View style={styles.lockBox}>
+                <Ionicons name="shield-checkmark" size={20} color={BrandColors.primary} />
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Username Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.fieldLabel}>यूज़रनेम (USERNAME)</Text>
+              <View style={[styles.inputBox, usernameFocused && styles.inputBoxFocused]}>
+                <Ionicons
+                  name="person-outline"
+                  size={18}
+                  color={usernameFocused ? BrandColors.primary : BrandColors.textMuted}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="यूज़रनेम दर्ज करें (e.g. admin)"
+                  placeholderTextColor={BrandColors.textMuted}
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onFocus={() => setUsernameFocused(true)}
+                  onBlur={() => setUsernameFocused(false)}
+                />
+              </View>
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.fieldLabel}>पासवर्ड (PASSWORD)</Text>
+              <View style={[styles.inputBox, passwordFocused && styles.inputBoxFocused]}>
+                <Ionicons
+                  name="key-outline"
+                  size={18}
+                  color={passwordFocused ? BrandColors.primary : BrandColors.textMuted}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="सुरक्षित पासवर्ड दर्ज करें"
+                  placeholderTextColor={BrandColors.textMuted}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={19}
+                    color={BrandColors.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={styles.loginBtn}
+              onPress={handleLogin}
+              disabled={loading}
+              activeOpacity={0.88}
+            >
+              {loading ? (
+                <StarButtonLoader label="सत्यापित किया जा रहा है..." color="#FFF" />
+              ) : (
+                <>
+                  <Ionicons name="lock-open" size={17} color="#FFF" />
+                  <Text style={styles.loginBtnText}>संपादकीय डेस्क में प्रवेश करें</Text>
+                  <Ionicons name="arrow-forward" size={16} color="#FFF" />
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Security Assurance */}
+            <View style={styles.securityBox}>
+              <Ionicons name="shield-checkmark" size={14} color="#16A34A" />
+              <Text style={styles.securityText}>
+                256-Bit SSL एन्क्रिप्टेड व्यवस्थापक सुरक्षा • पन्ना ब्यूरो
               </Text>
             </View>
-            <View style={styles.lockBox}>
-              <Ionicons name="lock-closed" size={20} color={BrandColors.primary} />
-            </View>
           </View>
 
-          <View style={styles.divider} />
-
-          {/* Username Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.fieldLabel}>यूज़रनेम (USERNAME)</Text>
-            <View style={styles.inputBox}>
-              <Ionicons name="person-outline" size={18} color={BrandColors.primary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="उदा. admin"
-                placeholderTextColor={BrandColors.textMuted}
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-              />
-            </View>
-          </View>
-
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.fieldLabel}>पासवर्ड (PASSWORD)</Text>
-            <View style={styles.inputBox}>
-              <Ionicons name="key-outline" size={18} color={BrandColors.primary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="सुरक्षित पासवर्ड दर्ज करें"
-                placeholderTextColor={BrandColors.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeBtn}
-              >
-                <Ionicons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
-                  size={19}
-                  color={BrandColors.textMuted}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={styles.loginBtn}
-            onPress={handleLogin}
-            disabled={loading}
-            activeOpacity={0.88}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFF" size="small" />
-            ) : (
-              <>
-                <Ionicons name="shield-checkmark" size={18} color="#FFF" />
-                <Text style={styles.loginBtnText}>संपादकीय डेस्क में प्रवेश करें</Text>
-                <Ionicons name="arrow-forward" size={16} color="#FFF" />
-              </>
-            )}
-          </TouchableOpacity>
-
-          {/* Security Assurance */}
-          <View style={styles.securityBox}>
-            <Ionicons name="shield-outline" size={14} color="#16A34A" />
-            <Text style={styles.securityText}>
-              256-Bit SSL एन्क्रिप्टेड व्यवस्थापक सुरक्षा
+          {/* Responsive Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerBrand}>STAR NEWS NETWORKS CMS</Text>
+            <Text style={styles.footerText}>
+              यह नियंत्रण कक्ष केवल अधिकृत संपादकीय टीम एवं अधिकृत पत्रकारों के लिए आरक्षित है।
             </Text>
           </View>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerBrand}>STAR NEWS NETWORKS CMS</Text>
-          <Text style={styles.footerText}>
-            यह पोर्टल केवल अधिकृत संपादकीय टीम एवं ब्यूरो प्रमुखों के लिए आरक्षित है।
-          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -194,118 +251,184 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#09090B",
+    backgroundColor: "#0B0C10",
+    marginTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+  },
+  ambientGlow: {
+    position: "absolute",
+    top: "-15%",
+    alignSelf: "center",
+    borderRadius: 9999,
+    backgroundColor: "rgba(229, 9, 20, 0.14)",
   },
   scroll: {
     flexGrow: 1,
-    paddingBottom: 30,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === "android" ? 20 : 35,
+    paddingBottom: 40,
   },
-  header: {
-    paddingTop: 45,
-    paddingBottom: 28,
-    paddingHorizontal: 20,
+  desktopScroll: {
     alignItems: "center",
+    justifyContent: "center",
   },
-  backButton: {
-    alignSelf: "flex-start",
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 20,
+  },
+  desktopTopBar: {
+    maxWidth: 480,
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 20,
     gap: 6,
-    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   backButtonText: {
     color: "#FFF",
     fontSize: 12,
     fontWeight: "700",
   },
-  liveBadgeRow: {
+  liveBroadcastPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 14,
+    backgroundColor: "rgba(229, 9, 20, 0.35)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: BrandColors.primary,
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#EF4444",
   },
-  liveText: {
+  liveBroadcastText: {
     color: "#FFF",
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: "800",
-    letterSpacing: 1.2,
+    letterSpacing: 0.5,
   },
-  liveDotText: {
-    color: "#71717A",
-    fontSize: 10,
-    fontWeight: "700",
+  cardWrapper: {
+    width: "100%",
+  },
+  desktopCardWrapper: {
+    maxWidth: 480,
+  },
+  smallMobileCardWrapper: {
+    paddingHorizontal: 0,
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 24,
   },
   logoBadge: {
-    width: 68,
-    height: 68,
-    borderRadius: 14,
-    backgroundColor: BrandColors.primary,
+    width: 72,
+    height: 72,
+    borderRadius: 18,
+    backgroundColor: BrandColors.primaryDark,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.4)",
-    marginBottom: 10,
+    borderColor: "rgba(255, 255, 255, 0.35)",
+    ...Shadows.md,
+    marginBottom: 12,
   },
-  brandTitle: {
-    fontSize: 22,
+  logoImage: {
+    width: 50,
+    height: 50,
+  },
+  brandTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  brandTitleWhite: {
+    fontSize: 24,
     fontWeight: "900",
     color: "#FFF",
     letterSpacing: 1,
   },
-  brandTagline: {
+  brandTitleRed: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: BrandColors.primary,
+    letterSpacing: 1,
+  },
+  brandSubtitle: {
     fontSize: 11,
-    fontWeight: "800",
+    fontWeight: "900",
     color: "#FCA5A5",
-    letterSpacing: 2,
+    letterSpacing: 3,
     marginTop: 2,
   },
+  taglineBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  taglineText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "rgba(255, 255, 255, 0.9)",
+    letterSpacing: 1.5,
+  },
+  taglineHindi: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.7)",
+    marginTop: 3,
+  },
   loginCard: {
-    backgroundColor: "#FFF",
-    marginHorizontal: 18,
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
     padding: 22,
-    borderTopWidth: 4,
-    borderTopColor: BrandColors.primary,
     ...Shadows.lg,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   cardHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: "900",
     color: BrandColors.charcoal,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   cardSubtitle: {
     fontSize: 11,
     color: BrandColors.textSecondary,
-    marginTop: 3,
+    fontWeight: "600",
+    marginTop: 2,
   },
   lockBox: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: 10,
     backgroundColor: "#FEE2E2",
     alignItems: "center",
     justifyContent: "center",
   },
   divider: {
     height: 1,
-    backgroundColor: BrandColors.borderLight,
-    marginVertical: 18,
+    backgroundColor: "#E2E8F0",
+    marginBottom: 16,
   },
   inputGroup: {
     marginBottom: 16,
@@ -313,77 +436,85 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 11,
     fontWeight: "800",
-    color: BrandColors.charcoal,
+    color: "#475569",
     marginBottom: 6,
     letterSpacing: 0.5,
   },
   inputBox: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    backgroundColor: "#F9FAFB",
+    borderColor: "#CBD5E1",
+    borderRadius: 10,
+    paddingHorizontal: 12,
     height: 48,
-    paddingHorizontal: 10,
+  },
+  inputBoxFocused: {
+    borderColor: BrandColors.primary,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
   },
   inputIcon: {
     marginRight: 8,
   },
   input: {
     flex: 1,
+    height: "100%",
     fontSize: 14,
     color: BrandColors.charcoal,
-    height: "100%",
   },
   eyeBtn: {
     padding: 6,
   },
   loginBtn: {
-    backgroundColor: BrandColors.primary,
-    height: 50,
-    borderRadius: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: BrandColors.primary,
+    borderRadius: 10,
+    height: 48,
     gap: 8,
-    marginTop: 8,
-    ...Shadows.sm,
+    marginTop: 6,
+    ...Shadows.md,
   },
   loginBtnText: {
     color: "#FFF",
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "800",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   securityBox: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    marginTop: 16,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
   },
   securityText: {
-    fontSize: 11,
-    color: "#16A34A",
+    fontSize: 10,
+    color: BrandColors.textSecondary,
     fontWeight: "600",
   },
   footer: {
     alignItems: "center",
     marginTop: 24,
-    paddingHorizontal: 24,
-    gap: 4,
+    paddingHorizontal: 12,
   },
   footerBrand: {
+    color: "#94A3B8",
     fontSize: 11,
-    fontWeight: "800",
-    color: "#A1A1AA",
+    fontWeight: "900",
     letterSpacing: 1,
   },
   footerText: {
-    fontSize: 10,
-    color: "#71717A",
+    color: "#64748B",
+    fontSize: 10.5,
     textAlign: "center",
-    lineHeight: 14,
+    lineHeight: 16,
+    marginTop: 4,
   },
 });

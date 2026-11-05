@@ -16,6 +16,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BrandColors, Shadows } from "@/constants/theme";
 import { NewsArticle } from "@/_services/api";
 import NewsCard from "@/components/NewsCard";
+import StarHeader from "@/components/StarHeader";
+import { StarPageLoader } from "@/components/StarBrandLoader";
 
 const SAVED_ARTICLES_KEY = "@starnews_saved_articles";
 
@@ -71,33 +73,26 @@ export default function SavedArticlesScreen() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor={BrandColors.primaryDark} />
 
-      {/* Top Bar */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="arrow-back" size={22} color="#FFF" />
-        </TouchableOpacity>
-
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>सहेजे गए समाचार</Text>
-          <Text style={styles.headerSubtitle}>
-            {savedArticles.length} लेख बुकमार्क किए गए
-          </Text>
-        </View>
-
-        {savedArticles.length > 0 && (
-          <TouchableOpacity style={styles.clearBtn} onPress={handleClearAll}>
-            <Ionicons name="trash-outline" size={18} color="#FFF" />
-            <Text style={styles.clearBtnText}>हटाएं</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* Unified Star Header */}
+      <StarHeader
+        variant="compact"
+        title="सहेजे गए समाचार"
+        subtitle={`${savedArticles.length} लेख बुकमार्क किए गए • पन्ना`}
+        onBackPress={() => router.back()}
+        rightActions={
+          savedArticles.length > 0 ? (
+            <TouchableOpacity style={styles.clearBtn} onPress={handleClearAll}>
+              <Ionicons name="trash-outline" size={16} color="#FFF" />
+              <Text style={styles.clearBtnText}>हटाएं</Text>
+            </TouchableOpacity>
+          ) : undefined
+        }
+      />
 
       {/* Content */}
-      {savedArticles.length === 0 ? (
+      {loading ? (
+        <StarPageLoader message="सहेजे गए समाचार लोड हो रहे हैं..." />
+      ) : savedArticles.length === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconCircle}>
             <Ionicons name="bookmark-outline" size={48} color={BrandColors.primary} />

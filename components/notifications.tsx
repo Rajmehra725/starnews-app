@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -18,12 +19,14 @@ import {
   formatTimeAgo,
   NotificationItem,
 } from "@/_services/api";
+import { StarPageLoader } from "@/components/StarBrandLoader";
 
 export default function Notifications() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<"all" | "breaking" | "panna" | "live">("all");
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -51,6 +54,19 @@ export default function Notifications() {
     fetchNotifications();
   };
 
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter((item) => {
+      if (activeFilter === "all") return true;
+      if (activeFilter === "breaking") return item.type === "breaking";
+      if (activeFilter === "panna") {
+        const text = `${item.title} ${item.message}`.toLowerCase();
+        return text.includes("पन्ना") || text.includes("panna");
+      }
+      if (activeFilter === "live") return item.type === "live" || item.type === "special";
+      return true;
+    });
+  }, [notifications, activeFilter]);
+
   const handleNotificationPress = async (item: NotificationItem) => {
     // Mark as read in backend
     try {
@@ -73,6 +89,7 @@ export default function Notifications() {
 
   return (
     <View style={styles.container}>
+      {/* Top Header */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <View style={styles.bellIconBox}>
@@ -89,20 +106,49 @@ export default function Notifications() {
         </TouchableOpacity>
       </View>
 
+      {/* Filter Chips Bar */}
+      <View style={styles.filterBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+          {[
+            { id: "all", label: "सभी अलर्ट (All)" },
+            { id: "breaking", label: "🔴 ब्रेकिंग न्यूज़" },
+            { id: "panna", label: "पन्ना अपडेट्स" },
+            { id: "live", label: "लाइव अलर्ट्स" },
+          ].map((tab) => (
+            <TouchableOpacity
+              key={tab.id}
+              style={[styles.filterChip, activeFilter === tab.id && styles.activeFilterChip]}
+              onPress={() => setActiveFilter(tab.id as any)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  activeFilter === tab.id && styles.activeFilterChipText,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Notifications List */}
       {loading && notifications.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={BrandColors.primary} />
-          <Text style={styles.loadingText}>नोटिफिकेशन लोड हो रहे हैं...</Text>
-        </View>
+        <StarPageLoader
+          message="स्टार न्यूज़ नोटिफिकेशन लोड हो रहे हैं..."
+          onRetry={fetchNotifications}
+        />
       ) : (
         <FlatList
-          data={notifications}
+          data={filteredNotifications}
           keyExtractor={(item) => item._id}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
               colors={[BrandColors.primary]}
+              tintColor={BrandColors.primary}
             />
           }
           contentContainerStyle={styles.listContent}
@@ -168,7 +214,7 @@ export default function Notifications() {
             <View style={styles.center}>
               <Ionicons name="notifications-off-outline" size={48} color={BrandColors.textMuted} />
               <Text style={styles.emptyTitle}>कोई नया नोटिफिकेशन नहीं है</Text>
-              <Text style={styles.emptySubtitle}>ब्रेकिंग अलर्ट यहां दिखाई देंगे।</Text>
+              <Text style={styles.emptySubtitle}>ब्रेकिंग अलर्ट और पन्ना के महत्वपूर्ण समाचार यहां दिखाई देंगे।</Text>
             </View>
           }
         />
@@ -186,7 +232,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: "#FFF",
     borderBottomWidth: 1,
@@ -198,15 +244,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   bellIconBox: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: 8,
     backgroundColor: BrandColors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "900",
     color: BrandColors.charcoal,
     letterSpacing: 0.5,
@@ -214,25 +260,51 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 10,
     color: BrandColors.textSecondary,
-    marginTop: 2,
+    marginTop: 1,
   },
   refreshBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#FEE2E2",
-    alignItems: "center",
-    justifyContent: "center",
+    padding: 6,
+  },
+  filterBar: {
+    backgroundColor: "#FFF",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.borderLight,
+  },
+  filterScroll: {
+    paddingHorizontal: 12,
+    gap: 7,
+  },
+  filterChip: {
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+  },
+  activeFilterChip: {
+    backgroundColor: BrandColors.primary,
+    borderColor: BrandColors.primaryDark,
+  },
+  filterChipText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: BrandColors.textSecondary,
+  },
+  activeFilterChipText: {
+    color: "#FFF",
+    fontWeight: "900",
   },
   listContent: {
-    padding: 14,
-    paddingBottom: 80,
-    gap: 10,
+    padding: 12,
+    paddingBottom: 90,
   },
   notificationCard: {
     backgroundColor: "#FFF",
     borderRadius: 12,
     padding: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: BrandColors.border,
     position: "relative",
@@ -266,20 +338,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  generalIconCircle: {
-    backgroundColor: BrandColors.charcoal,
-  },
   breakingIconCircle: {
     backgroundColor: BrandColors.primary,
+  },
+  generalIconCircle: {
+    backgroundColor: "#2563EB",
   },
   tagTimeRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 8,
     marginBottom: 4,
   },
   typeBadge: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#EFF6FF",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -289,41 +361,41 @@ const styles = StyleSheet.create({
   },
   typeBadgeText: {
     fontSize: 9,
-    fontWeight: "800",
+    fontWeight: "900",
     color: BrandColors.primaryDark,
   },
   timeAgoText: {
     fontSize: 10,
     color: BrandColors.textMuted,
-    marginRight: 14,
+    fontWeight: "500",
   },
   titleText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "800",
     color: BrandColors.charcoal,
-    lineHeight: 18,
+    lineHeight: 19,
     marginBottom: 3,
   },
   messageText: {
     fontSize: 12,
     color: BrandColors.textSecondary,
-    lineHeight: 16,
+    lineHeight: 17,
   },
   thumbImage: {
-    width: 50,
-    height: 50,
+    width: 55,
+    height: 55,
     borderRadius: 6,
-    marginLeft: 6,
+    backgroundColor: "#0F172A",
   },
   openNewsAction: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
+    gap: 4,
+    marginTop: 8,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: BrandColors.borderLight,
-    paddingTop: 8,
-    marginTop: 8,
-    gap: 4,
   },
   openNewsText: {
     fontSize: 11,
@@ -340,14 +412,16 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 13,
     color: BrandColors.textSecondary,
+    fontWeight: "600",
   },
   emptyTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: BrandColors.charcoal,
   },
   emptySubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: BrandColors.textSecondary,
+    textAlign: "center",
   },
 });

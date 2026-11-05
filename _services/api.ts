@@ -187,7 +187,8 @@ export interface IdCardItem {
 
 export interface YouTubeItem {
   _id: string;
-  title: string;
+  title?: string;
+  channelName?: string;
   link: string;
   type?: "video" | "live";
   createdAt?: string;

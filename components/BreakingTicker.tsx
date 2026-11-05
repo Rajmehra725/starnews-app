@@ -9,7 +9,8 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { io } from "socket.io-client";
-import { BrandColors } from "@/constants/theme";
+import { router } from "expo-router";
+import { BrandColors, Shadows } from "@/constants/theme";
 import { apiClient, API_BASE_URL, BreakingItem } from "@/_services/api";
 
 export default function BreakingTicker() {
@@ -21,18 +22,18 @@ export default function BreakingTicker() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  // Pulse animation for the LIVE indicator
+  // Pulse animation for the FLASH indicator
   useEffect(() => {
     const pulseLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 0.4,
-          duration: 600,
+          toValue: 0.3,
+          duration: 500,
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 600,
+          duration: 500,
           useNativeDriver: true,
         }),
       ])
@@ -45,7 +46,9 @@ export default function BreakingTicker() {
   const fetchBreaking = async () => {
     try {
       const res = await apiClient.get<BreakingItem[]>("/api/breaking");
-      const active = (res.data || []).filter((b) => b.isActive);
+      const active = (res.data || [])
+        .filter((b) => b.isActive)
+        .sort((a, b) => (b.priority || 0) - (a.priority || 0));
       setItems(active);
     } catch (err) {
       console.log("Breaking News Fetch Error:", err);
@@ -57,7 +60,6 @@ export default function BreakingTicker() {
   useEffect(() => {
     fetchBreaking();
 
-    // Listen for live socket updates
     const socket = io(API_BASE_URL, { transports: ["websocket"] });
     socket.on("breakingUpdated", () => {
       fetchBreaking();
@@ -71,7 +73,7 @@ export default function BreakingTicker() {
     };
   }, []);
 
-  // Text cycling animation
+  // Text cycling animation (smooth slide and cross-fade)
   useEffect(() => {
     if (items.length <= 1) return;
 
@@ -103,7 +105,7 @@ export default function BreakingTicker() {
           }),
         ]).start();
       });
-    }, 4500);
+    }, 4000);
 
     return () => clearInterval(timer);
   }, [items, fadeAnim, slideAnim]);
@@ -112,7 +114,7 @@ export default function BreakingTicker() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="small" color={BrandColors.primary} />
-        <Text style={styles.loadingText}>ताज़ा अपडेट लोड हो रहे हैं...</Text>
+        <Text style={styles.loadingText}>ताज़ा ब्रेकिंग अपडेट लोड हो रहे हैं...</Text>
       </View>
     );
   }
@@ -125,15 +127,21 @@ export default function BreakingTicker() {
 
   return (
     <View style={styles.wrapper}>
-      {/* Red News Channel Badge */}
+      {/* High-impact Aaj Tak-style Breaking Badge */}
       <View style={styles.badge}>
         <Animated.View style={[styles.liveDot, { opacity: pulseAnim }]} />
-        <MaterialCommunityIcons name="flash" size={14} color="#FFF" />
-        <Text style={styles.badgeText}>BREAKING</Text>
+        <MaterialCommunityIcons name="flash" size={15} color="#FFF" />
+        <Text style={styles.badgeText}>ब्रेकिंग</Text>
       </View>
 
-      {/* Headline Text with animation */}
-      <View style={styles.textContainer}>
+      {/* Marquee Headline Text with slide animation */}
+      <TouchableOpacity
+        style={styles.textContainer}
+        activeOpacity={0.8}
+        onPress={() => {
+          // If the item has priority or matches a news item, we can allow readers to tap
+        }}
+      >
         <Animated.Text
           style={[
             styles.headlineText,
@@ -146,9 +154,9 @@ export default function BreakingTicker() {
         >
           {currentItem.text}
         </Animated.Text>
-      </View>
+      </TouchableOpacity>
 
-      {/* Counter Badge if multiple */}
+      {/* Live Counter Badge */}
       {items.length > 1 && (
         <View style={styles.counterBadge}>
           <Text style={styles.counterText}>
@@ -166,17 +174,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#FFF",
     borderWidth: 1,
-    borderColor: "#FCA5A5",
+    borderColor: "#FECACA",
     borderRadius: 8,
-    marginHorizontal: 14,
-    marginVertical: 10,
+    marginHorizontal: 12,
+    marginVertical: 8,
     overflow: "hidden",
-    height: 42,
-    elevation: 2,
+    height: 40,
+    elevation: 3,
     shadowColor: BrandColors.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
   },
   badge: {
     backgroundColor: BrandColors.primary,
@@ -194,9 +202,9 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: "#FFF",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "900",
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   textContainer: {
     flex: 1,
@@ -207,25 +215,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     color: BrandColors.charcoal,
+    lineHeight: 18,
   },
   counterBadge: {
     paddingRight: 10,
+    paddingLeft: 4,
   },
   counterText: {
     fontSize: 10,
-    fontWeight: "700",
-    color: BrandColors.textMuted,
+    fontWeight: "800",
+    color: BrandColors.primaryDark,
+    backgroundColor: BrandColors.primaryGhost,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
   loadingContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
+    paddingVertical: 8,
     gap: 8,
   },
   loadingText: {
-    fontSize: 12,
+    fontSize: 11,
     color: BrandColors.textSecondary,
-    fontWeight: "500",
+    fontWeight: "600",
   },
 });

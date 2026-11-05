@@ -7,35 +7,30 @@ import {
   TouchableOpacity,
   Linking,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { BrandColors, BrandIdentity, Shadows } from "@/constants/theme";
 
 export default function About() {
-  
-
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.brand}>STAR NEWS NETWORK</Text>
-        <Text style={styles.tagline}>
-          Fast • Reliable • Unbiased Journalism
-        </Text>
+        <View style={styles.brandTitleRow}>
+          <Text style={styles.brandWhite}>STAR </Text>
+          <Text style={styles.brandRed}>NEWS</Text>
+        </View>
+        <Text style={styles.parentBrand}>NETWORKS</Text>
+        <View style={styles.taglineBadge}>
+          <Text style={styles.taglineText}>Local • Live • Trusted | लोकल • लाइव • भरोसेमंद</Text>
+        </View>
       </View>
 
       {/* HERO SECTION */}
       <View style={styles.hero}>
-        <Ionicons name="newspaper-outline" size={45} color="#fff" />
-
-        <Text style={styles.heroTitle}>
-          Trusted Journalism for Everyone
-        </Text>
-
+        <MaterialCommunityIcons name="broadcast" size={40} color="#fff" />
+        <Text style={styles.heroTitle}>पन्ना एवं बुंदेलखंड का निष्पक्ष आवाज़</Text>
         <Text style={styles.heroSubtitle}>
-          Bringing verified news, live updates, and meaningful stories from
-          local districts to national headlines.
+          सत्य, गति और विश्वसनीयता के साथ पन्ना जिला, मध्य प्रदेश एवं देश-दुनिया की प्रामाणिक पत्रकारिता।
         </Text>
       </View>
 
@@ -43,202 +38,80 @@ export default function About() {
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>24×7</Text>
-          <Text style={styles.statLabel}>Live Updates</Text>
+          <Text style={styles.statLabel}>लाइव कवरेज</Text>
         </View>
-
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>1000+</Text>
-          <Text style={styles.statLabel}>Articles</Text>
+          <Text style={styles.statNumber}>पन्ना</Text>
+          <Text style={styles.statLabel}>मुख्य केंद्र</Text>
         </View>
-
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>50K+</Text>
-          <Text style={styles.statLabel}>Readers</Text>
+          <Text style={styles.statNumber}>100%</Text>
+          <Text style={styles.statLabel}>सत्यापित समाचार</Text>
         </View>
       </View>
 
-      {/* ABOUT */}
+      {/* BRAND & BUREAU IDENTITY */}
       <View style={styles.card}>
         <View style={styles.row}>
-          <Ionicons name="information-circle" size={22} color="#dc2626" />
-          <Text style={styles.cardTitle}>About Star News Network</Text>
+          <Ionicons name="shield-checkmark" size={20} color={BrandColors.primary} />
+          <Text style={styles.cardTitle}>स्टार न्यूज़ नेटवर्क परिचय</Text>
         </View>
-
         <Text style={styles.cardText}>
-          Star News Network is a modern digital news platform dedicated to
-          delivering accurate, fast, and unbiased news coverage. We focus on
-          local district news, national developments, politics, sports,
-          entertainment, and breaking stories that matter.
+          स्टार न्यूज़ (Star News) मध्य प्रदेश के पन्ना जिले से संचालित अग्रणी डिजिटल एवं ज़मीनी समाचार नेटवर्क है। हमारा लक्ष्य पन्ना, सतना, छतरपुर, रीवा और समूचे बुंदेलखंड क्षेत्र के नागरिकों तक विश्वसनीय, त्वरित और निष्पक्ष समाचार पहुँचाना है।
         </Text>
       </View>
 
-      {/* MISSION */}
+      {/* EDITORIAL MISSION */}
       <View style={styles.card}>
         <View style={styles.row}>
-          <Ionicons name="flag" size={22} color="#dc2626" />
-          <Text style={styles.cardTitle}>Our Mission</Text>
+          <Ionicons name="flag" size={20} color={BrandColors.primary} />
+          <Text style={styles.cardTitle}>हमारा संपादकीय संकल्प</Text>
         </View>
-
         <Text style={styles.cardText}>
-          To empower citizens with trustworthy journalism and real-time
-          information through innovative technology and responsible reporting.
+          • जनहित एवं जनसरोकारों को प्राथमिकता{"\n"}
+          • भ्रामक एवं असत्यापित खबरों से मुक्त रिपोर्टिंग{"\n"}
+          • ग्रामीण एवं ज़मीनी मुद्दों को मुख्यधारा में लाना{"\n"}
+          • डिजिटल क्रांति के ज़रिए त्वरित सूचना प्रसारण
         </Text>
       </View>
 
-      {/* COVERAGE */}
+      {/* COVERAGE BEATS */}
       <View style={styles.card}>
         <View style={styles.row}>
-          <Ionicons name="globe-outline" size={22} color="#dc2626" />
-          <Text style={styles.cardTitle}>News Coverage</Text>
+          <Ionicons name="globe-outline" size={20} color={BrandColors.primary} />
+          <Text style={styles.cardTitle}>मुख्य कवरेज क्षेत्र</Text>
         </View>
-
         <Text style={styles.cardText}>
-          • Breaking News{"\n"}
-          • Local District News{"\n"}
-          • Politics & Government{"\n"}
-          • Sports Updates{"\n"}
-          • Entertainment News{"\n"}
-          • Business & Economy{"\n"}
-          • Education & Jobs{"\n"}
-          • Live Reports
+          📍 मुख्य केंद्र: पन्ना (Panna, Madhya Pradesh){"\n"}
+          📍 क्षेत्रीय कवरेज: सतना, छतरपुर, रीवा, बुंदेलखंड{"\n"}
+          📍 राष्ट्रीय एवं प्रादेशिक: भोपाल, मध्य प्रदेश, देश-दुनिया{"\n"}
+          📍 विशेष बीट्स: अपराध, राजनीति, शिक्षा, खेल, मनोरंजन, व्यापार
         </Text>
       </View>
 
-      {/* FEATURES */}
+      {/* BUREAU DESK */}
       <View style={styles.card}>
         <View style={styles.row}>
-          <Ionicons name="star" size={22} color="#dc2626" />
-          <Text style={styles.cardTitle}>App Features</Text>
+          <Ionicons name="person" size={20} color={BrandColors.primary} />
+          <Text style={styles.cardTitle}>ब्यूरो नेतृत्व</Text>
         </View>
-
         <Text style={styles.cardText}>
-          • Live News Updates{"\n"}
-          • E-Paper Reading{"\n"}
-          • Push Notifications{"\n"}
-          • Bookmark Articles{"\n"}
-          • Reading History{"\n"}
-          • Photo Gallery{"\n"}
-          • Dark Mode Support{"\n"}
-          • Fast Performance
-        </Text>
-      </View>
-
-      {/* VALUES */}
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <Ionicons name="shield-checkmark" size={22} color="#dc2626" />
-          <Text style={styles.cardTitle}>Our Values</Text>
-        </View>
-
-        <Text style={styles.cardText}>
-          ✓ Truth & Transparency{"\n"}
-          ✓ Ethical Journalism{"\n"}
-          ✓ Independent Reporting{"\n"}
-          ✓ Public Interest First{"\n"}
-          ✓ Accuracy & Credibility
-        </Text>
-      </View>
-
-      {/* TEAM */}
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <Ionicons name="people" size={22} color="#dc2626" />
-          <Text style={styles.cardTitle}>Our Team</Text>
-        </View>
-
-        <Text style={styles.cardText}>
-          Our team consists of experienced journalists, editors, reporters,
-          photographers, and developers who work together to provide reliable
-          and timely news content.
+          जिला ब्यूरो प्रमुख: {BrandIdentity.bureauChief}{"\n"}
+          संपादकीय डेस्क: पन्ना, मध्य प्रदेश{"\n"}
+          हेल्पलाइन: {BrandIdentity.helplinePhone}{"\n"}
+          ईमेल: {BrandIdentity.helplineEmail}
         </Text>
       </View>
 
       {/* DISCLAIMER */}
       <View style={styles.noticeCard}>
-        <Text style={styles.noticeTitle}>Disclaimer</Text>
-
+        <Text style={styles.noticeTitle}>संपादकीय घोषणा</Text>
         <Text style={styles.noticeText}>
-          News content is collected from verified sources and editorial
-          reporting. Readers are advised to independently verify important
-          information before taking any action.
+          स्टार न्यूज़ नेटवर्क पर प्रकाशित समस्त समाचार, लेख एवं विचार पत्रकारिता के सर्वोच्च मानकों एवं सूचना प्रौद्योगिकी अधिनियम के दिशा-निर्देशों के अनुरूप प्रकाशित किए जाते हैं।
         </Text>
       </View>
 
-      {/* CONTACT */}
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <Ionicons name="call" size={22} color="#dc2626" />
-          <Text style={styles.cardTitle}>Contact Us</Text>
-        </View>
-
-        <Text style={styles.contactText}>
-          📞 +91 7987667358
-        </Text>
-
-        <Text style={styles.contactText}>
-          📧 starnewsnetworks1988@gmail.com
-        </Text>
-
-        <Text style={styles.contactText}>
-          🌐 www.starnewsnetwork.com
-        </Text>
-      </View>
-
-      {/* SOCIAL */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Follow Us</Text>
-
-        <View style={styles.socialRow}>
-          <TouchableOpacity>
-            <Ionicons
-              name="logo-facebook"
-              size={30}
-              color="#1877F2"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity>
-            <Ionicons
-              name="logo-instagram"
-              size={30}
-              color="#E1306C"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity>
-            <Ionicons
-              name="logo-youtube"
-              size={30}
-              color="#FF0000"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity>
-            <Ionicons
-              name="logo-twitter"
-              size={30}
-              color="#000"
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* FOOTER */}
-      <View style={styles.footer}>
-        <Text style={styles.footerTitle}>
-          STAR NEWS NETWORK
-        </Text>
-
-        <Text style={styles.footerText}>
-          © {new Date().getFullYear()} All Rights Reserved
-        </Text>
-
-        <Text style={styles.footerText}>
-          Version 1.0.0
-        </Text>
-      </View>
-
-      <View style={{ height: 30 }} />
+      <View style={styles.footerSpacing} />
     </ScrollView>
   );
 }
@@ -246,161 +119,145 @@ export default function About() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: BrandColors.background,
   },
-
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 25,
-    paddingBottom: 10,
+    backgroundColor: BrandColors.primaryDark,
+    alignItems: "center",
+    paddingVertical: 20,
+    paddingHorizontal: 16,
   },
-
-  brand: {
+  brandTitleRow: {
+    flexDirection: "row",
+  },
+  brandWhite: {
     fontSize: 24,
     fontWeight: "900",
-    color: "#dc2626",
+    color: "#FFF",
     letterSpacing: 1,
   },
-
-  tagline: {
-    fontSize: 13,
-    color: "#64748b",
-    marginTop: 5,
-    fontWeight: "600",
-  },
-
-  hero: {
-    margin: 16,
-    backgroundColor: "#dc2626",
-    borderRadius: 24,
-    padding: 25,
-    alignItems: "center",
-    elevation: 6,
-  },
-
-  heroTitle: {
-    color: "#fff",
+  brandRed: {
     fontSize: 24,
     fontWeight: "900",
-    textAlign: "center",
-    marginTop: 10,
+    color: "#FCA5A5",
+    letterSpacing: 1,
   },
-
+  parentBrand: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "rgba(255, 255, 255, 0.75)",
+    letterSpacing: 4,
+    marginTop: 2,
+  },
+  taglineBadge: {
+    marginTop: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 14,
+  },
+  taglineText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  hero: {
+    backgroundColor: BrandColors.charcoal,
+    alignItems: "center",
+    padding: 20,
+    marginHorizontal: 12,
+    marginTop: -10,
+    borderRadius: 14,
+    ...Shadows.md,
+  },
+  heroTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#FFF",
+    marginTop: 8,
+    textAlign: "center",
+  },
   heroSubtitle: {
-    color: "#fff",
-    fontSize: 14,
+    fontSize: 12,
+    color: "#94A3B8",
     textAlign: "center",
-    marginTop: 10,
-    lineHeight: 22,
-    opacity: 0.95,
+    lineHeight: 18,
+    marginTop: 6,
   },
-
   statsContainer: {
     flexDirection: "row",
-    paddingHorizontal: 16,
-    marginBottom: 15,
+    gap: 8,
+    marginHorizontal: 12,
+    marginVertical: 12,
   },
-
   statCard: {
     flex: 1,
-    backgroundColor: "#fff",
-    marginHorizontal: 4,
-    borderRadius: 18,
-    paddingVertical: 18,
+    backgroundColor: "#FFF",
+    borderRadius: 10,
+    padding: 12,
     alignItems: "center",
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+    ...Shadows.sm,
   },
-
   statNumber: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "900",
-    color: "#dc2626",
+    color: BrandColors.primaryDark,
   },
-
   statLabel: {
-    fontSize: 12,
-    color: "#64748b",
-    marginTop: 4,
+    fontSize: 10,
+    color: BrandColors.textMuted,
+    fontWeight: "600",
+    marginTop: 2,
   },
-
   card: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginBottom: 14,
-    borderRadius: 20,
-    padding: 18,
-    elevation: 3,
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 14,
+    marginHorizontal: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+    ...Shadows.sm,
   },
-
   row: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
-  },
-
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    marginLeft: 8,
-    color: "#111827",
-  },
-
-  cardText: {
-    fontSize: 14,
-    lineHeight: 24,
-    color: "#6b7280",
-  },
-
-  noticeCard: {
-    backgroundColor: "#fff7ed",
-    marginHorizontal: 16,
-    marginBottom: 14,
-    borderRadius: 20,
-    padding: 18,
-    borderLeftWidth: 4,
-    borderLeftColor: "#dc2626",
-  },
-
-  noticeTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#dc2626",
+    gap: 8,
     marginBottom: 8,
   },
-
-  noticeText: {
+  cardTitle: {
     fontSize: 14,
-    color: "#6b7280",
-    lineHeight: 22,
+    fontWeight: "800",
+    color: BrandColors.charcoal,
   },
-
-  contactText: {
-    fontSize: 14,
-    color: "#475569",
-    marginBottom: 10,
-  },
-
-  socialRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: 15,
-  },
-
-  footer: {
-    alignItems: "center",
-    paddingVertical: 25,
-    marginTop: 10,
-  },
-
-  footerTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#dc2626",
-  },
-
-  footerText: {
+  cardText: {
     fontSize: 13,
-    color: "#64748b",
-    marginTop: 4,
+    color: "#334155",
+    lineHeight: 20,
+  },
+  noticeCard: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: 10,
+    padding: 12,
+    marginHorizontal: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  noticeTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: BrandColors.primaryDark,
+    marginBottom: 4,
+  },
+  noticeText: {
+    fontSize: 11,
+    color: "#7F1D1D",
+    lineHeight: 16,
+  },
+  footerSpacing: {
+    height: 40,
   },
 });

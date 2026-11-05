@@ -15,6 +15,7 @@ import {
   StatusBar,
   RefreshControl,
   Switch,
+  useWindowDimensions,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,6 +25,7 @@ import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { BrandColors, Shadows } from "@/constants/theme";
+import { StarPageLoader, StarButtonLoader } from "@/components/StarBrandLoader";
 import {
   apiClient,
   API_BASE_URL,
@@ -43,13 +45,14 @@ import {
   ContactItem,
 } from "@/_services/api";
 
-const { width } = Dimensions.get("window");
-const IS_DESKTOP = width > 768;
-
 type AdminTab =
   | "overview"
   | "news"
   | "breaking"
+  | "categories"
+  | "media"
+  | "analytics"
+  | "logs"
   | "banners"
   | "epaper"
   | "gallery"
@@ -63,10 +66,31 @@ type AdminTab =
   | "settings";
 
 export default function AdminDashboard() {
+  const { width, height } = useWindowDimensions();
+  const isDesktop = width >= 1024;
+  const isTablet = width >= 768 && width < 1024;
+  const isMobile = width < 768;
+  const isSmallMobile = width < 390;
+
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
-  const [sidebarOpen, setSidebarOpen] = useState(IS_DESKTOP);
+  const [sidebarOpen, setSidebarOpen] = useState(isDesktop);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Auto-sync sidebar when transitioning across desktop breakpoint
+  useEffect(() => {
+    setSidebarOpen(isDesktop);
+  }, [isDesktop]);
+
+  const handleSelectTab = useCallback(
+    (tab: AdminTab) => {
+      setActiveTab(tab);
+      if (!isDesktop) {
+        setSidebarOpen(false);
+      }
+    },
+    [isDesktop]
+  );
 
   // Data States
   const [newsList, setNewsList] = useState<NewsArticle[]>([]);
@@ -80,6 +104,32 @@ export default function AdminDashboard() {
   const [youtubeList, setYoutubeList] = useState<YouTubeItem[]>([]);
   const [adsList, setAdsList] = useState<AdItem[]>([]);
   const [contactList, setContactList] = useState<ContactItem[]>([]);
+
+  // Categories State
+  const [categoriesList, setCategoriesList] = useState<{ id: string; name: string; hindi: string; isActive: boolean; order: number }[]>([
+    { id: "1", name: "Madhya Pradesh", hindi: "मध्य प्रदेश", isActive: true, order: 1 },
+    { id: "2", name: "Panna", hindi: "पन्ना", isActive: true, order: 2 },
+    { id: "3", name: "Satna", hindi: "सतना", isActive: true, order: 3 },
+    { id: "4", name: "Chhatarpur", hindi: "छतरपुर", isActive: true, order: 4 },
+    { id: "5", name: "Rewa", hindi: "रीवा", isActive: true, order: 5 },
+    { id: "6", name: "Bundelkhand", hindi: "बुंदेलखंड", isActive: true, order: 6 },
+    { id: "7", name: "Crime", hindi: "अपराध (Crime)", isActive: true, order: 7 },
+    { id: "8", name: "Politics", hindi: "राजनीति (Politics)", isActive: true, order: 8 },
+    { id: "9", name: "Education", hindi: "शिक्षा (Education)", isActive: true, order: 9 },
+    { id: "10", name: "Sports", hindi: "खेल (Sports)", isActive: true, order: 10 },
+  ]);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatHindi, setNewCatHindi] = useState("");
+  const [catModalVisible, setCatModalVisible] = useState(false);
+
+  // Media Library State
+  const [mediaSearchQuery, setMediaSearchQuery] = useState("");
+  const [mediaTypeFilter, setMediaTypeFilter] = useState<"all" | "news" | "banner" | "gallery" | "epaper" | "ads">("all");
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
+
+  // Activity Logs State
+  const [activityLogs, setActivityLogs] = useState<{ id: string; action: string; details: string; timestamp: string; actor: string }[]>([]);
+  const [logFilter, setLogFilter] = useState<"all" | "NEWS" | "BANNER" | "BREAKING" | "BROADCAST" | "EPAPER">("all");
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -923,49 +973,103 @@ export default function AdminDashboard() {
           <TouchableOpacity
             style={styles.menuToggle}
             onPress={() => setSidebarOpen(!sidebarOpen)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons name="menu" size={24} color="#FFF" />
           </TouchableOpacity>
 
           <View style={styles.navBrandBlock}>
-            <View style={styles.navLogo}>
-              <MaterialCommunityIcons name="broadcast" size={18} color="#FFF" />
+            <View style={[styles.navLogo, isSmallMobile && { width: 28, height: 28 }]}>
+              <MaterialCommunityIcons name="broadcast" size={isSmallMobile ? 15 : 18} color="#FFF" />
             </View>
             <View>
-              <Text style={styles.navBrandText}>STAR NEWS NETWORKS</Text>
-              <Text style={styles.navSubBrand}>NEWSROOM CMS CONTROL</Text>
+              <Text style={[styles.navBrandText, isSmallMobile && { fontSize: 11 }]}>
+                STAR NEWS NETWORKS
+              </Text>
+              {!isSmallMobile && (
+                <Text style={styles.navSubBrand}>NEWSROOM CMS CONTROL</Text>
+              )}
             </View>
           </View>
         </View>
 
-        <View style={styles.topNavRight}>
-          <View style={styles.liveDeskPill}>
-            <View style={styles.liveGreenDot} />
-            <Text style={styles.liveDeskText}>DESK LIVE 24×7</Text>
-          </View>
+        <View style={[styles.topNavRight, isSmallMobile && { gap: 6 }]}>
+          {!isMobile ? (
+            <View style={styles.liveDeskPill}>
+              <View style={styles.liveGreenDot} />
+              <Text style={styles.liveDeskText}>DESK LIVE 24×7</Text>
+            </View>
+          ) : !isSmallMobile ? (
+            <View style={[styles.liveDeskPill, { paddingHorizontal: 6, paddingVertical: 3 }]}>
+              <View style={styles.liveGreenDot} />
+              <Text style={[styles.liveDeskText, { fontSize: 8 }]}>LIVE</Text>
+            </View>
+          ) : null}
 
           <TouchableOpacity
-            style={styles.quickAddNewsBtn}
+            style={[styles.quickAddNewsBtn, isSmallMobile && { paddingHorizontal: 8 }]}
             onPress={handleOpenCreateNews}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons name="add-circle" size={16} color="#FFF" />
-            <Text style={styles.quickAddNewsText}>खबर लिखें</Text>
+            {!isSmallMobile && <Text style={styles.quickAddNewsText}>खबर लिखें</Text>}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.refreshIconBtn} onPress={onRefresh}>
+          <TouchableOpacity
+            style={styles.refreshIconBtn}
+            onPress={onRefresh}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Ionicons name="refresh" size={18} color="#FFF" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.exitBtn} onPress={handleLogout}>
+          <TouchableOpacity
+            style={styles.exitBtn}
+            onPress={handleLogout}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Ionicons name="log-out-outline" size={19} color="#FCA5A5" />
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.mainLayout}>
+        {/* MOBILE/TABLET DRAWER BACKDROP */}
+        {!isDesktop && sidebarOpen && (
+          <TouchableOpacity
+            style={styles.drawerBackdrop}
+            activeOpacity={1}
+            onPress={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* SIDEBAR NAVIGATION */}
         {sidebarOpen && (
-          <View style={styles.sidebar}>
+          <View
+            style={[
+              styles.sidebar,
+              !isDesktop && styles.sidebarDrawer,
+              !isDesktop && { width: Math.min(width * 0.82, 280) },
+            ]}
+          >
+            {!isDesktop && (
+              <View style={styles.drawerHeader}>
+                <View style={styles.drawerHeaderBrand}>
+                  <View style={styles.navLogo}>
+                    <MaterialCommunityIcons name="broadcast" size={16} color="#FFF" />
+                  </View>
+                  <Text style={styles.drawerHeaderTitle}>स्टार न्यूज़ नेविगेशन</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.drawerCloseBtn}
+                  onPress={() => setSidebarOpen(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={22} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sidebarScroll}>
               <View style={styles.sidebarSectionLabel}>
                 <Text style={styles.sidebarLabelText}>संपादकीय डेस्क (EDITORIAL)</Text>
@@ -975,7 +1079,7 @@ export default function AdminDashboard() {
                 icon="grid-outline"
                 label="डैशबोर्ड (Overview)"
                 active={activeTab === "overview"}
-                onPress={() => setActiveTab("overview")}
+                onPress={() => handleSelectTab("overview")}
               />
 
               <SidebarItem
@@ -983,7 +1087,7 @@ export default function AdminDashboard() {
                 label="समाचार प्रबंधन (News)"
                 badge={String(stats.totalNews)}
                 active={activeTab === "news"}
-                onPress={() => setActiveTab("news")}
+                onPress={() => handleSelectTab("news")}
               />
 
               <SidebarItem
@@ -992,7 +1096,7 @@ export default function AdminDashboard() {
                 badge={String(stats.activeBreaking)}
                 badgeColor={BrandColors.primary}
                 active={activeTab === "breaking"}
-                onPress={() => setActiveTab("breaking")}
+                onPress={() => handleSelectTab("breaking")}
               />
 
               <SidebarItem
@@ -1001,7 +1105,7 @@ export default function AdminDashboard() {
                 badge={stats.pendingCitizen > 0 ? String(stats.pendingCitizen) : undefined}
                 badgeColor="#EAB308"
                 active={activeTab === "citizen"}
-                onPress={() => setActiveTab("citizen")}
+                onPress={() => handleSelectTab("citizen")}
               />
 
               <View style={styles.sidebarSectionLabel}>
@@ -1013,7 +1117,7 @@ export default function AdminDashboard() {
                 label="ई-पेपर संस्करण (E-Paper)"
                 badge={String(stats.epapersCount)}
                 active={activeTab === "epaper"}
-                onPress={() => setActiveTab("epaper")}
+                onPress={() => handleSelectTab("epaper")}
               />
 
               <SidebarItem
@@ -1021,7 +1125,7 @@ export default function AdminDashboard() {
                 label="फोटो गैलरी (Albums)"
                 badge={String(stats.galleryCount)}
                 active={activeTab === "gallery"}
-                onPress={() => setActiveTab("gallery")}
+                onPress={() => handleSelectTab("gallery")}
               />
 
               <SidebarItem
@@ -1029,7 +1133,7 @@ export default function AdminDashboard() {
                 label="बैनर विज्ञापन (Banners)"
                 badge={String(stats.bannersCount)}
                 active={activeTab === "banners"}
-                onPress={() => setActiveTab("banners")}
+                onPress={() => handleSelectTab("banners")}
               />
 
               <SidebarItem
@@ -1037,7 +1141,7 @@ export default function AdminDashboard() {
                 label="यूट्यूब एवं लाइव (YouTube)"
                 badge={String(youtubeList.length)}
                 active={activeTab === "youtube"}
-                onPress={() => setActiveTab("youtube")}
+                onPress={() => handleSelectTab("youtube")}
               />
 
               <SidebarItem
@@ -1045,7 +1149,7 @@ export default function AdminDashboard() {
                 label="इन-फ़ीड विज्ञापन (Ads)"
                 badge={String(adsList.length)}
                 active={activeTab === "ads"}
-                onPress={() => setActiveTab("ads")}
+                onPress={() => handleSelectTab("ads")}
               />
 
               <View style={styles.sidebarSectionLabel}>
@@ -1056,7 +1160,7 @@ export default function AdminDashboard() {
                 icon="notifications-outline"
                 label="पुश नोटिफिकेशन (Alerts)"
                 active={activeTab === "notifications"}
-                onPress={() => setActiveTab("notifications")}
+                onPress={() => handleSelectTab("notifications")}
               />
 
               <SidebarItem
@@ -1064,7 +1168,7 @@ export default function AdminDashboard() {
                 label="प्रेस आईडी कार्ड (ID Cards)"
                 badge={String(idCardList.length)}
                 active={activeTab === "idcards"}
-                onPress={() => setActiveTab("idcards")}
+                onPress={() => handleSelectTab("idcards")}
               />
 
               <SidebarItem
@@ -1072,14 +1176,14 @@ export default function AdminDashboard() {
                 label="संपर्क संदेश (Contacts)"
                 badge={String(contactList.length)}
                 active={activeTab === "contacts"}
-                onPress={() => setActiveTab("contacts")}
+                onPress={() => handleSelectTab("contacts")}
               />
 
               <SidebarItem
                 icon="settings-outline"
                 label="व्यवस्था एवं लॉगआउट"
                 active={activeTab === "settings"}
-                onPress={() => setActiveTab("settings")}
+                onPress={() => handleSelectTab("settings")}
               />
             </ScrollView>
           </View>
@@ -1088,10 +1192,10 @@ export default function AdminDashboard() {
         {/* CONTENT AREA */}
         <View style={styles.contentArea}>
           {loading && !refreshing ? (
-            <View style={styles.centerLoading}>
-              <ActivityIndicator size="large" color={BrandColors.primary} />
-              <Text style={styles.loadingText}>CMS डेटा लोड हो रहा है...</Text>
-            </View>
+            <StarPageLoader
+              message="स्टार न्यूज़ CMS डेटा लोड हो रहा है..."
+              onRetry={loadDashboardData}
+            />
           ) : (
             <ScrollView
               contentContainerStyle={styles.contentScroll}
@@ -1116,6 +1220,7 @@ export default function AdminDashboard() {
                       value={String(stats.totalNews)}
                       color="#DC2626"
                       subValue={`${stats.publishedNews} प्रकाशित • ${stats.draftNews} ड्राफ्ट`}
+                      style={{ minWidth: isSmallMobile ? "100%" : isTablet ? "47%" : isDesktop ? "31%" : "47%" }}
                     />
                     <KpiCard
                       icon="eye"
@@ -1123,6 +1228,7 @@ export default function AdminDashboard() {
                       value={formatMetricCount(stats.totalViews)}
                       color="#2563EB"
                       subValue={`${stats.totalViews.toLocaleString()} वास्तविक पाठक`}
+                      style={{ minWidth: isSmallMobile ? "100%" : isTablet ? "47%" : isDesktop ? "31%" : "47%" }}
                     />
                     <KpiCard
                       icon="share-social"
@@ -1130,6 +1236,7 @@ export default function AdminDashboard() {
                       value={formatMetricCount(stats.totalShares)}
                       color="#7C3AED"
                       subValue="सोशल मीडिया शेयर"
+                      style={{ minWidth: isSmallMobile ? "100%" : isTablet ? "47%" : isDesktop ? "31%" : "47%" }}
                     />
                     <KpiCard
                       icon="flash"
@@ -1137,6 +1244,7 @@ export default function AdminDashboard() {
                       value={String(stats.activeBreaking)}
                       color="#EA580C"
                       subValue="लाइव टिकर में सक्रिय"
+                      style={{ minWidth: isSmallMobile ? "100%" : isTablet ? "47%" : isDesktop ? "31%" : "47%" }}
                     />
                     <KpiCard
                       icon="person-add"
@@ -1144,6 +1252,7 @@ export default function AdminDashboard() {
                       value={String(citizenNews.length)}
                       color="#0D9488"
                       subValue={`${stats.pendingCitizen} स्वीकृति हेतु लंबित`}
+                      style={{ minWidth: isSmallMobile ? "100%" : isTablet ? "47%" : isDesktop ? "31%" : "47%" }}
                     />
                     <KpiCard
                       icon="book"
@@ -1151,13 +1260,18 @@ export default function AdminDashboard() {
                       value={String(stats.epapersCount)}
                       color="#4F46E5"
                       subValue="डिजिटल प्रिंट संस्करण"
+                      style={{ minWidth: isSmallMobile ? "100%" : isTablet ? "47%" : isDesktop ? "31%" : "47%" }}
                     />
                   </View>
 
                   {/* Quick Action Buttons */}
                   <View style={styles.quickActionsBar}>
                     <TouchableOpacity
-                      style={[styles.actionBigBtn, { backgroundColor: BrandColors.primary }]}
+                      style={[
+                        styles.actionBigBtn,
+                        { backgroundColor: BrandColors.primary },
+                        isSmallMobile && { minWidth: "100%" },
+                      ]}
                       onPress={handleOpenCreateNews}
                     >
                       <Ionicons name="create" size={18} color="#FFF" />
@@ -1245,7 +1359,7 @@ export default function AdminDashboard() {
                   </View>
 
                   {/* Search & Status Filters */}
-                  <View style={styles.filterBar}>
+                  <View style={[styles.filterBar, isMobile && { flexDirection: "column", alignItems: "stretch" }]}>
                     <View style={styles.filterSearchBox}>
                       <Ionicons name="search" size={16} color={BrandColors.textMuted} />
                       <TextInput
@@ -1257,13 +1371,14 @@ export default function AdminDashboard() {
                       />
                     </View>
 
-                    <View style={styles.statusFilterGroup}>
+                    <View style={[styles.statusFilterGroup, isMobile && { alignSelf: "stretch", justifyContent: "space-around" }]}>
                       {(["all", "published", "draft"] as const).map((st) => (
                         <TouchableOpacity
                           key={st}
                           style={[
                             styles.statusFilterBtn,
                             statusFilter === st && styles.activeStatusFilterBtn,
+                            isMobile && { flex: 1, alignItems: "center" },
                           ]}
                           onPress={() => setStatusFilter(st)}
                         >
@@ -1282,14 +1397,14 @@ export default function AdminDashboard() {
 
                   {/* News List Items */}
                   {filteredNewsList.map((item) => (
-                    <View key={item._id} style={styles.newsAdminCard}>
+                    <View key={item._id} style={[styles.newsAdminCard, isMobile && { gap: 10, padding: 10 }]}>
                       <Image
                         source={{ uri: getFullMediaUrl(item.featuredImage) }}
-                        style={styles.newsAdminThumb}
+                        style={[styles.newsAdminThumb, isSmallMobile && { width: 58, height: 58 }]}
                         contentFit="cover"
                       />
-                      <View style={{ flex: 1, gap: 4 }}>
-                        <View style={styles.newsAdminMetaRow}>
+                      <View style={{ flex: 1, gap: 3 }}>
+                        <View style={[styles.newsAdminMetaRow, isSmallMobile && { flexWrap: "wrap", gap: 4 }]}>
                           <View style={styles.adminCatBadge}>
                             <Text style={styles.adminCatBadgeText}>{item.category || "General"}</Text>
                           </View>
@@ -1300,37 +1415,45 @@ export default function AdminDashboard() {
                             ]}
                           >
                             <Text style={styles.statusPillSmallText}>
-                              {item.status === "draft" ? "ड्राफ्ट (Draft)" : "प्रकाशित (Live)"}
+                              {item.status === "draft" ? "ड्राफ्ट" : "लाइव"}
                             </Text>
                           </View>
                           <Text style={styles.adminDateText}>{formatTimeAgo(item.createdAt)}</Text>
                         </View>
 
-                        <Text style={styles.newsAdminTitle} numberOfLines={2}>
+                        <Text
+                          style={[
+                            styles.newsAdminTitle,
+                            isSmallMobile && { fontSize: 12, lineHeight: 16 },
+                          ]}
+                          numberOfLines={2}
+                        >
                           {item.title}
                         </Text>
 
-                        <View style={styles.newsAdminMetrics}>
-                          <Text style={styles.newsMetricText}>👁️ {item.views || 0} व्यूज</Text>
-                          <Text style={styles.newsMetricText}>❤️ {item.likes || 0} लाइक्स</Text>
-                          <Text style={styles.newsMetricText}>💬 {item.comments?.length || 0} कमेंट</Text>
+                        <View style={[styles.newsAdminMetrics, isSmallMobile && { flexWrap: "wrap", gap: 6 }]}>
+                          <Text style={styles.newsMetricText}>👁️ {item.views || 0}</Text>
+                          <Text style={styles.newsMetricText}>❤️ {item.likes || 0}</Text>
+                          <Text style={styles.newsMetricText}>💬 {item.comments?.length || 0}</Text>
                         </View>
                       </View>
 
                       {/* Edit & Delete Actions */}
-                      <View style={styles.adminActionGroup}>
+                      <View style={[styles.adminActionGroup, isMobile && { flexDirection: "column", gap: 6 }]}>
                         <TouchableOpacity
                           style={styles.editActionBtn}
                           onPress={() => handleOpenEditNews(item)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                         >
-                          <Ionicons name="create-outline" size={18} color="#2563EB" />
+                          <Ionicons name="create-outline" size={17} color="#2563EB" />
                         </TouchableOpacity>
 
                         <TouchableOpacity
                           style={styles.deleteActionBtn}
                           onPress={() => handleDeleteNews(item._id, item.title)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                         >
-                          <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                          <Ionicons name="trash-outline" size={17} color="#DC2626" />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -1419,7 +1542,13 @@ export default function AdminDashboard() {
 
                   <View style={styles.bannerGrid}>
                     {bannerList.map((b) => (
-                      <View key={b._id} style={styles.bannerAdminCard}>
+                      <View
+                        key={b._id}
+                        style={[
+                          styles.bannerAdminCard,
+                          { width: isDesktop ? "31.5%" : isTablet ? "48%" : "100%" },
+                        ]}
+                      >
                         <Image
                           source={{ uri: getFullMediaUrl(b.url || b.image) }}
                           style={styles.bannerAdminImg}
@@ -1664,7 +1793,13 @@ export default function AdminDashboard() {
 
                   <View style={styles.idCardGrid}>
                     {idCardList.map((card) => (
-                      <View key={card._id} style={styles.pressIdCard}>
+                      <View
+                        key={card._id}
+                        style={[
+                          styles.pressIdCard,
+                          { width: isDesktop ? "31.5%" : isTablet ? "48%" : "100%" },
+                        ]}
+                      >
                         <View style={styles.pressIdHeader}>
                           <Text style={styles.pressIdOrg}>STAR NEWS NETWORKS</Text>
                           <Text style={styles.pressIdEmpId}>{card.employeeId}</Text>
@@ -1857,13 +1992,14 @@ export default function AdminDashboard() {
         onRequestClose={() => setNewsModalVisible(false)}
       >
         <SafeAreaView style={styles.modalSafe}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setNewsModalVisible(false)} style={styles.modalCloseBtn}>
-              <Ionicons name="close" size={24} color={BrandColors.charcoal} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>
-              {editingNewsId ? "समाचार संपादित करें (Edit News)" : "नया समाचार प्रकाशित करें (New Article)"}
-            </Text>
+          <View style={[styles.modalInnerContainer, isDesktop && styles.desktopModalInner]}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setNewsModalVisible(false)} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={24} color={BrandColors.charcoal} />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>
+                {editingNewsId ? "समाचार संपादित करें (Edit News)" : "नया समाचार प्रकाशित करें (New Article)"}
+              </Text>
             <TouchableOpacity
               style={styles.modalSaveBtn}
               onPress={handleSaveNews}
@@ -2046,8 +2182,9 @@ export default function AdminDashboard() {
               )}
             </View>
           </ScrollView>
-        </SafeAreaView>
-      </Modal>
+        </View>
+      </SafeAreaView>
+    </Modal>
       {/* ================= MODAL: ADD / EDIT BREAKING TICKER ================= */}
       <Modal
         visible={breakingModalVisible}
@@ -2103,11 +2240,12 @@ export default function AdminDashboard() {
         onRequestClose={() => setNotifModalVisible(false)}
       >
         <SafeAreaView style={styles.modalSafe}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setNotifModalVisible(false)} style={styles.modalCloseBtn}>
-              <Ionicons name="close" size={24} color={BrandColors.charcoal} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>पुश नोटिफिकेशन कंपोज़र (Push Broadcast)</Text>
+          <View style={[styles.modalInnerContainer, isDesktop && styles.desktopModalInner]}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setNotifModalVisible(false)} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={24} color={BrandColors.charcoal} />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>पुश नोटिफिकेशन कंपोज़र (Push Broadcast)</Text>
             <TouchableOpacity
               style={[styles.modalSaveBtn, { backgroundColor: BrandColors.primary }]}
               onPress={handleSendNotification}
@@ -2184,8 +2322,9 @@ export default function AdminDashboard() {
               </View>
             </View>
           </ScrollView>
-        </SafeAreaView>
-      </Modal>
+        </View>
+      </SafeAreaView>
+    </Modal>
 
       {/* ================= MODAL: ADD BANNER ================= */}
       <Modal
@@ -2249,11 +2388,12 @@ export default function AdminDashboard() {
         onRequestClose={() => setEpaperModalVisible(false)}
       >
         <SafeAreaView style={styles.modalSafe}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setEpaperModalVisible(false)} style={styles.modalCloseBtn}>
-              <Ionicons name="close" size={24} color={BrandColors.charcoal} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>नया ई-पेपर संस्करण प्रकाशित करें</Text>
+          <View style={[styles.modalInnerContainer, isDesktop && styles.desktopModalInner]}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setEpaperModalVisible(false)} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={24} color={BrandColors.charcoal} />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>नया ई-पेपर संस्करण प्रकाशित करें</Text>
             <TouchableOpacity
               style={[styles.modalSaveBtn, { backgroundColor: BrandColors.primary }]}
               onPress={handleSaveEpaper}
@@ -2311,8 +2451,9 @@ export default function AdminDashboard() {
               )}
             </View>
           </ScrollView>
-        </SafeAreaView>
-      </Modal>
+        </View>
+      </SafeAreaView>
+    </Modal>
 
       {/* ================= MODAL: ADD GALLERY ALBUM ================= */}
       <Modal
@@ -2322,11 +2463,12 @@ export default function AdminDashboard() {
         onRequestClose={() => setGalleryModalVisible(false)}
       >
         <SafeAreaView style={styles.modalSafe}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setGalleryModalVisible(false)} style={styles.modalCloseBtn}>
-              <Ionicons name="close" size={24} color={BrandColors.charcoal} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>नया फोटो एल्बम बनाएं</Text>
+          <View style={[styles.modalInnerContainer, isDesktop && styles.desktopModalInner]}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setGalleryModalVisible(false)} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={24} color={BrandColors.charcoal} />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>नया फोटो एल्बम बनाएं</Text>
             <TouchableOpacity
               style={[styles.modalSaveBtn, { backgroundColor: BrandColors.primary }]}
               onPress={handleSaveGallery}
@@ -2382,8 +2524,9 @@ export default function AdminDashboard() {
               )}
             </View>
           </ScrollView>
-        </SafeAreaView>
-      </Modal>
+        </View>
+      </SafeAreaView>
+    </Modal>
 
       {/* ================= MODAL: ADD YOUTUBE LINK ================= */}
       <Modal
@@ -2651,23 +2794,25 @@ function KpiCard({
   value,
   color,
   subValue,
+  style,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   value: string;
   color: string;
   subValue: string;
+  style?: any;
 }) {
   return (
-    <View style={styles.kpiCard}>
+    <View style={[styles.kpiCard, style]}>
       <View style={styles.kpiTop}>
-        <Text style={styles.kpiTitle}>{title}</Text>
+        <Text style={styles.kpiTitle} numberOfLines={1}>{title}</Text>
         <View style={[styles.kpiIconBox, { backgroundColor: color + "18" }]}>
           <Ionicons name={icon} size={18} color={color} />
         </View>
       </View>
       <Text style={styles.kpiValue}>{value}</Text>
-      <Text style={styles.kpiSub}>{subValue}</Text>
+      <Text style={styles.kpiSub} numberOfLines={2}>{subValue}</Text>
     </View>
   );
 }
@@ -2784,10 +2929,50 @@ const styles = StyleSheet.create({
     backgroundColor: BrandColors.background,
   },
   sidebar: {
-    width: IS_DESKTOP ? 260 : 220,
+    width: 250,
     backgroundColor: "#18181B",
     borderRightWidth: 1,
     borderRightColor: "#27272A",
+  },
+  sidebarDrawer: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 100,
+    ...Shadows.lg,
+  },
+  drawerBackdrop: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    zIndex: 90,
+  },
+  drawerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#27272A",
+    backgroundColor: "#111113",
+  },
+  drawerHeaderBrand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  drawerHeaderTitle: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  drawerCloseBtn: {
+    padding: 4,
   },
   sidebarScroll: {
     paddingVertical: 12,
@@ -2867,6 +3052,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
     marginBottom: 8,
   },
   pageTitle: {
@@ -3206,7 +3393,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   bannerAdminCard: {
-    width: IS_DESKTOP ? "31%" : "48%",
+    width: "100%",
     backgroundColor: "#FFF",
     borderRadius: 10,
     overflow: "hidden",
@@ -3367,7 +3554,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   pressIdCard: {
-    width: IS_DESKTOP ? "31%" : "100%",
+    width: "100%",
     backgroundColor: "#FFF",
     borderRadius: 10,
     padding: 12,
@@ -3497,6 +3684,15 @@ const styles = StyleSheet.create({
   modalSafe: {
     flex: 1,
     backgroundColor: "#FFF",
+  },
+  modalInnerContainer: {
+    flex: 1,
+    width: "100%",
+  },
+  desktopModalInner: {
+    width: "100%",
+    maxWidth: 740,
+    alignSelf: "center",
   },
   modalHeader: {
     flexDirection: "row",

@@ -11,6 +11,7 @@ import {
   Share,
   Platform,
   Alert,
+  Modal,
 } from "react-native";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
@@ -20,7 +21,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { BrandColors, Shadows } from "@/constants/theme";
+import { BrandColors, BrandIdentity, Shadows } from "@/constants/theme";
 import {
   apiClient,
   API_BASE_URL,
@@ -31,8 +32,10 @@ import {
   NewsComment,
 } from "@/_services/api";
 import NewsCard from "@/components/NewsCard";
+import StarHeader from "@/components/StarHeader";
+import { StarFullScreenLoader, StarButtonLoader } from "@/components/StarBrandLoader";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 const SAVED_ARTICLES_KEY = "@starnews_saved_articles";
 
@@ -54,6 +57,8 @@ export default function NewsDetail() {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1);
   const [relatedNews, setRelatedNews] = useState<NewsArticle[]>([]);
+  const [imageModalVisible, setImageModalVisible] = useState(false);
+  const [activeModalImage, setActiveModalImage] = useState<string | null>(null);
 
   const viewedRef = useRef(false);
 
@@ -174,7 +179,7 @@ export default function NewsDetail() {
     try {
       await Share.share({
         title: article.title,
-        message: `🔴 ${article.title}\n\nपूरी खबर पढ़ें स्टार न्यूज़ नेटवर्क्स पर:\nhttps://starnewsnetworks.com/news/${article._id}`,
+        message: `🔴 ${article.title}\n\nस्टार न्यूज़ नेटवर्क पर पूरी खबर पढ़ें:\nhttps://starnewsnetworks.com/news/${article._id}`,
       });
 
       apiClient.post(`/api/news/${id}/share`, { userId: "app_reader" }).catch(() => {});
@@ -209,7 +214,7 @@ export default function NewsDetail() {
     }
   };
 
-  /* TEXT TO SPEECH (AUDIO READER) */
+  /* TEXT TO SPEECH (AUDIO NEWS READER) */
   const toggleSpeech = async () => {
     if (isPlayingAudio) {
       await Speech.stop();
@@ -270,12 +275,7 @@ export default function NewsDetail() {
   };
 
   if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={BrandColors.primary} />
-        <Text style={styles.loadingText}>समाचार लोड हो रहा है...</Text>
-      </View>
-    );
+    return <StarFullScreenLoader message="समाचार लेख लोड हो रहा है..." />;
   }
 
   if (!article) {
@@ -292,54 +292,37 @@ export default function NewsDetail() {
 
   const imageUrl = getFullMediaUrl(article.featuredImage || (article.images && article.images[0]));
   const isBreaking = article.breaking || Date.now() - new Date(article.createdAt).getTime() < 3 * 3600 * 1000;
+  const isPanna =
+    article.category?.toLowerCase().includes("panna") ||
+    article.title?.toLowerCase().includes("पन्ना") ||
+    article.title?.toLowerCase().includes("panna");
+
+  const additionalImages = (article.images || []).filter((img) => getFullMediaUrl(img) !== imageUrl);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      {/* Top Navigation Bar */}
-      <View style={styles.navBar}>
-        <TouchableOpacity
-          style={styles.navBtn}
-          onPress={() => router.back()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="arrow-back" size={22} color={BrandColors.charcoal} />
-        </TouchableOpacity>
-
-        <View style={styles.navBrand}>
-          <Text style={styles.navBrandText}>STAR NEWS</Text>
-          <View style={styles.livePill}>
-            <Text style={styles.livePillText}>LIVE</Text>
-          </View>
-        </View>
-
-        <View style={styles.navActions}>
-          <TouchableOpacity
-            style={styles.navBtn}
-            onPress={() => setFontSizeMultiplier((prev) => (prev === 1 ? 1.2 : prev === 1.2 ? 1.35 : 1))}
-          >
-            <MaterialCommunityIcons name="format-size" size={20} color={BrandColors.charcoal} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navBtn} onPress={handleToggleBookmark}>
-            <Ionicons
-              name={isBookmarked ? "bookmark" : "bookmark-outline"}
-              size={21}
-              color={isBookmarked ? BrandColors.primary : BrandColors.charcoal}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navBtn} onPress={handleShare}>
-            <Ionicons name="share-social-outline" size={21} color={BrandColors.charcoal} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* Unified Star Header for Article Reading */}
+      <StarHeader
+        variant="news-detail"
+        title={article.title}
+        isBookmarked={isBookmarked}
+        onBookmarkPress={handleToggleBookmark}
+        onSharePress={handleShare}
+        onFontSizePress={() =>
+          setFontSizeMultiplier((prev) => (prev === 1 ? 1.15 : prev === 1.15 ? 1.3 : 1))
+        }
+        onBackPress={() => router.back()}
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Category & Breaking Headline Banner */}
+        {/* Top Category and Breaking Tags */}
         <View style={styles.topMetaContainer}>
-          <View style={styles.categoryPill}>
-            <Text style={styles.categoryPillText}>{(article.category || "विशेष खबर").toUpperCase()}</Text>
+          <View style={[styles.categoryPill, isPanna && styles.pannaCategoryPill]}>
+            <Text style={styles.categoryPillText}>
+              {isPanna ? "पन्ना विशेष" : (article.category || "विशेष खबर").toUpperCase()}
+            </Text>
           </View>
+
           {isBreaking && (
             <View style={styles.breakingTag}>
               <MaterialCommunityIcons name="flash" size={13} color="#FFF" />
@@ -353,36 +336,84 @@ export default function NewsDetail() {
           {article.title}
         </Text>
 
-        {/* Bureau & Date Byline */}
+        {/* Bureau & Reporter Accreditation */}
         <View style={styles.bylineCard}>
           <View style={styles.bureauAvatar}>
             <MaterialCommunityIcons name="newspaper-variant" size={20} color="#FFF" />
           </View>
           <View style={styles.bylineInfo}>
-            <Text style={styles.reporterName}>स्टार न्यूज़ नेटवर्क ब्यूरो</Text>
+            <View style={styles.bureauChiefRow}>
+              <Text style={styles.reporterName}>
+                {isPanna ? "पन्ना ब्यूरो • प्रकाश श्रीवास्तव" : "स्टार न्यूज़ नेटवर्क ब्यूरो"}
+              </Text>
+              <MaterialCommunityIcons name="check-decagram" size={14} color="#2563EB" />
+            </View>
             <Text style={styles.publishDate}>
-              प्रकाशित: {new Date(article.createdAt).toLocaleString("hi-IN", {
+              प्रकाशित:{" "}
+              {new Date(article.createdAt).toLocaleString("hi-IN", {
                 day: "numeric",
                 month: "short",
                 year: "numeric",
                 hour: "2-digit",
                 minute: "2-digit",
-              })} • {formatTimeAgo(article.createdAt)}
+              })}{" "}
+              • {formatTimeAgo(article.createdAt)}
             </Text>
           </View>
         </View>
 
-        {/* Hero Image */}
-        <View style={styles.imageBox}>
+        {/* Large Featured Image */}
+        <TouchableOpacity
+          style={styles.imageBox}
+          activeOpacity={0.9}
+          onPress={() => {
+            setActiveModalImage(imageUrl);
+            setImageModalVisible(true);
+          }}
+        >
           <Image
             source={{ uri: imageUrl }}
             style={styles.heroImage}
             contentFit="cover"
             transition={300}
           />
-        </View>
+          <View style={styles.zoomHintPill}>
+            <Ionicons name="expand" size={12} color="#FFF" />
+            <Text style={styles.zoomHintText}>टैप कर बड़ा देखें</Text>
+          </View>
+        </TouchableOpacity>
 
-        {/* Listen to Article Audio Player Bar */}
+        {/* Multiple Additional Images Gallery Strip (if present) */}
+        {additionalImages.length > 0 && (
+          <View style={styles.galleryStrip}>
+            <Text style={styles.galleryStripTitle}>फोटो गैलरी ({additionalImages.length + 1} चित्र)</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryScroll}>
+              <TouchableOpacity
+                style={styles.galleryThumb}
+                onPress={() => {
+                  setActiveModalImage(imageUrl);
+                  setImageModalVisible(true);
+                }}
+              >
+                <Image source={{ uri: imageUrl }} style={styles.galleryImage} contentFit="cover" />
+              </TouchableOpacity>
+              {additionalImages.map((img, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.galleryThumb}
+                  onPress={() => {
+                    setActiveModalImage(getFullMediaUrl(img));
+                    setImageModalVisible(true);
+                  }}
+                >
+                  <Image source={{ uri: getFullMediaUrl(img) }} style={styles.galleryImage} contentFit="cover" />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Listen to Article (Audio News Reader TTS) */}
         <TouchableOpacity style={styles.audioBar} onPress={toggleSpeech} activeOpacity={0.85}>
           <View style={styles.audioIconBox}>
             <Ionicons
@@ -395,16 +426,16 @@ export default function NewsDetail() {
             <Text style={styles.audioTitle}>
               {isPlayingAudio ? "ऑडियो चल रहा है (Listening...)" : "खबर सुनें (Listen to Article)"}
             </Text>
-            <Text style={styles.audioSubtitle}>आवाज़ में सुनें पूरी रिपोर्ट</Text>
+            <Text style={styles.audioSubtitle}>हिंदी आवाज़ में सुनें पूरी रिपोर्ट</Text>
           </View>
           <Ionicons
             name={isPlayingAudio ? "stop-circle" : "play-circle"}
-            size={24}
+            size={26}
             color={BrandColors.primary}
           />
         </TouchableOpacity>
 
-        {/* Metrics Bar */}
+        {/* Reader Engagement Stats Bar */}
         <View style={styles.statsBar}>
           <View style={styles.statItem}>
             <Ionicons name="eye-outline" size={16} color={BrandColors.textSecondary} />
@@ -422,29 +453,29 @@ export default function NewsDetail() {
           </View>
         </View>
 
-        {/* Short Summary Lead */}
+        {/* Lead / Short Summary */}
         {article.description ? (
           <View style={styles.leadBox}>
-            <Text style={[styles.leadText, { fontSize: 15 * fontSizeMultiplier }]}>
+            <Text style={[styles.leadText, { fontSize: 16 * fontSizeMultiplier }]}>
               {article.description}
             </Text>
           </View>
         ) : null}
 
-        {/* Main Content */}
+        {/* Main Article Body Text */}
         {article.content ? (
-          <Text style={[styles.bodyText, { fontSize: 15 * fontSizeMultiplier }]}>
+          <Text style={[styles.bodyText, { fontSize: 16 * fontSizeMultiplier }]}>
             {article.content}
           </Text>
         ) : null}
 
-        {/* Rich Multi-Sections if present */}
+        {/* Rich Multi-Sections if published with rich layout */}
         {article.sections && article.sections.length > 0 && (
           <View style={styles.sectionsContainer}>
             {article.sections.map((sec, idx) => (
               <View key={idx} style={styles.sectionBlock}>
                 {sec.heading ? (
-                  <Text style={[styles.sectionHeading, { fontSize: 17 * fontSizeMultiplier }]}>
+                  <Text style={[styles.sectionHeading, { fontSize: 18 * fontSizeMultiplier }]}>
                     {sec.heading}
                   </Text>
                 ) : null}
@@ -455,7 +486,7 @@ export default function NewsDetail() {
                     contentFit="cover"
                   />
                 ) : null}
-                <Text style={[styles.sectionContent, { fontSize: 15 * fontSizeMultiplier }]}>
+                <Text style={[styles.sectionContent, { fontSize: 16 * fontSizeMultiplier }]}>
                   {sec.content}
                 </Text>
               </View>
@@ -463,7 +494,7 @@ export default function NewsDetail() {
           </View>
         )}
 
-        {/* Action Button Row */}
+        {/* Interactive Action Bar (Like, Save, WhatsApp Share) */}
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={[styles.actionBtn, isLiked && styles.likedBtn]}
@@ -471,7 +502,7 @@ export default function NewsDetail() {
           >
             <Ionicons
               name={isLiked ? "heart" : "heart-outline"}
-              size={20}
+              size={18}
               color={isLiked ? "#DC2626" : BrandColors.charcoal}
             />
             <Text style={[styles.actionBtnText, isLiked && styles.likedText]}>
@@ -485,7 +516,7 @@ export default function NewsDetail() {
           >
             <Ionicons
               name={isBookmarked ? "bookmark" : "bookmark-outline"}
-              size={20}
+              size={18}
               color={isBookmarked ? BrandColors.primary : BrandColors.charcoal}
             />
             <Text style={[styles.actionBtnText, isBookmarked && styles.bookmarkedText]}>
@@ -493,22 +524,23 @@ export default function NewsDetail() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
-            <Ionicons name="share-social" size={20} color={BrandColors.charcoal} />
-            <Text style={styles.actionBtnText}>शेयर करें</Text>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.whatsappBtn]}
+            onPress={handleShare}
+          >
+            <Ionicons name="share-social" size={18} color="#FFF" />
+            <Text style={styles.whatsappBtnText}>शेयर करें</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Comments Section */}
+        {/* Reader Comments Section */}
         <View style={styles.commentsContainer}>
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionHeaderBar} />
-            <Text style={styles.sectionHeaderTitle}>
-              पाठक प्रतिक्रिया ({comments.length})
-            </Text>
+            <Text style={styles.sectionHeaderTitle}>पाठक प्रतिक्रिया ({comments.length})</Text>
           </View>
 
-          {/* Comment Input Box */}
+          {/* Comment Form */}
           <View style={styles.commentInputBox}>
             <TextInput
               style={styles.nameInput}
@@ -519,7 +551,7 @@ export default function NewsDetail() {
             />
             <TextInput
               style={styles.commentTextInput}
-              placeholder="इस खबर पर अपनी राय लिखें (Add a comment)..."
+              placeholder="इस खबर पर अपनी राय लिखें..."
               placeholderTextColor={BrandColors.textMuted}
               value={commentText}
               onChangeText={setCommentText}
@@ -531,11 +563,11 @@ export default function NewsDetail() {
               disabled={submittingComment}
             >
               {submittingComment ? (
-                <ActivityIndicator size="small" color="#FFF" />
+                <StarButtonLoader label="भेजा जा रहा है..." color="#FFF" />
               ) : (
                 <>
-                  <Text style={styles.submitCommentText}>टिप्पणी भेजें</Text>
-                  <Ionicons name="send" size={14} color="#FFF" />
+                  <Text style={styles.submitCommentText}>प्रतिक्रिया भेजें</Text>
+                  <Ionicons name="send" size={13} color="#FFF" />
                 </>
               )}
             </TouchableOpacity>
@@ -562,12 +594,12 @@ export default function NewsDetail() {
           ))}
         </View>
 
-        {/* Related News Section */}
+        {/* Related News Recommendations */}
         {relatedNews.length > 0 && (
           <View style={styles.relatedContainer}>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.sectionHeaderBar} />
-              <Text style={styles.sectionHeaderTitle}>संबंधित खबरें (RELATED NEWS)</Text>
+              <Text style={styles.sectionHeaderTitle}>संबंधित खबरें (RELATED STORIES)</Text>
             </View>
             {relatedNews.map((rel) => (
               <NewsCard key={rel._id} article={rel} variant="compact" />
@@ -575,6 +607,30 @@ export default function NewsDetail() {
           </View>
         )}
       </ScrollView>
+
+      {/* Full-Screen Image Lightbox Modal */}
+      <Modal
+        visible={imageModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setImageModalVisible(false)}
+      >
+        <SafeAreaView style={styles.imageModalContainer}>
+          <TouchableOpacity
+            style={styles.imageModalCloseBtn}
+            onPress={() => setImageModalVisible(false)}
+          >
+            <Ionicons name="close" size={26} color="#FFF" />
+          </TouchableOpacity>
+          {activeModalImage && (
+            <Image
+              source={{ uri: activeModalImage }}
+              style={styles.modalFullImage}
+              contentFit="contain"
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -598,14 +654,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   notFoundText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "700",
     color: BrandColors.charcoal,
   },
   backBtn: {
     backgroundColor: BrandColors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
     borderRadius: 8,
   },
   backBtnText: {
@@ -626,7 +682,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -636,9 +692,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   navBrandText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "900",
     color: BrandColors.charcoal,
+    letterSpacing: 0.5,
   },
   livePill: {
     backgroundColor: BrandColors.primary,
@@ -671,6 +728,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 4,
   },
+  pannaCategoryPill: {
+    backgroundColor: "#059669",
+  },
   categoryPillText: {
     color: "#FFF",
     fontSize: 11,
@@ -695,9 +755,10 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "900",
     color: BrandColors.charcoal,
-    lineHeight: 30,
+    lineHeight: 31,
     paddingHorizontal: 14,
     paddingTop: 10,
+    letterSpacing: -0.2,
   },
   bylineCard: {
     flexDirection: "row",
@@ -717,9 +778,14 @@ const styles = StyleSheet.create({
   bylineInfo: {
     flex: 1,
   },
+  bureauChiefRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   reporterName: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
     color: BrandColors.charcoal,
   },
   publishDate: {
@@ -730,10 +796,53 @@ const styles = StyleSheet.create({
   imageBox: {
     width: "100%",
     height: 240,
-    backgroundColor: "#1F2937",
+    backgroundColor: "#0F172A",
     marginBottom: 12,
+    position: "relative",
   },
   heroImage: {
+    width: "100%",
+    height: "100%",
+  },
+  zoomHintPill: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  zoomHintText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  galleryStrip: {
+    paddingHorizontal: 14,
+    marginBottom: 14,
+  },
+  galleryStripTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: BrandColors.charcoal,
+    marginBottom: 8,
+  },
+  galleryScroll: {
+    gap: 8,
+  },
+  galleryThumb: {
+    width: 80,
+    height: 60,
+    borderRadius: 6,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+  },
+  galleryImage: {
     width: "100%",
     height: "100%",
   },
@@ -743,28 +852,29 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF5F5",
     borderWidth: 1,
     borderColor: "#FECACA",
-    borderRadius: 10,
+    borderRadius: 12,
     marginHorizontal: 14,
     marginBottom: 14,
     padding: 10,
     gap: 10,
   },
   audioIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#FEE2E2",
     alignItems: "center",
     justifyContent: "center",
   },
   audioTitle: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
     color: BrandColors.primaryDark,
   },
   audioSubtitle: {
     fontSize: 11,
     color: BrandColors.textSecondary,
+    marginTop: 1,
   },
   statsBar: {
     flexDirection: "row",
@@ -797,17 +907,18 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   leadText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     color: BrandColors.charcoal,
-    lineHeight: 22,
+    lineHeight: 25,
   },
   bodyText: {
-    fontSize: 15,
-    color: "#27272A",
-    lineHeight: 25,
+    fontSize: 16,
+    color: "#1E293B",
+    lineHeight: 28,
     paddingHorizontal: 14,
     marginBottom: 16,
+    letterSpacing: 0.1,
   },
   sectionsContainer: {
     paddingHorizontal: 14,
@@ -818,25 +929,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionHeading: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "800",
     color: BrandColors.charcoal,
-    lineHeight: 23,
+    lineHeight: 25,
   },
   sectionImage: {
     width: "100%",
-    height: 190,
+    height: 195,
     borderRadius: 8,
   },
   sectionContent: {
-    fontSize: 15,
-    color: "#27272A",
-    lineHeight: 24,
+    fontSize: 16,
+    color: "#1E293B",
+    lineHeight: 27,
   },
   actionRow: {
     flexDirection: "row",
     paddingHorizontal: 14,
-    gap: 12,
+    gap: 10,
     marginVertical: 14,
   },
   actionBtn: {
@@ -844,7 +955,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#F1F5F9",
     paddingVertical: 11,
     borderRadius: 8,
     gap: 6,
@@ -854,10 +965,12 @@ const styles = StyleSheet.create({
   },
   bookmarkedBtn: {
     backgroundColor: "#FEF2F2",
-    borderColor: BrandColors.primaryLight,
+  },
+  whatsappBtn: {
+    backgroundColor: BrandColors.primary,
   },
   actionBtnText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     color: BrandColors.charcoal,
   },
@@ -866,6 +979,11 @@ const styles = StyleSheet.create({
   },
   bookmarkedText: {
     color: BrandColors.primary,
+  },
+  whatsappBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#FFF",
   },
   commentsContainer: {
     paddingHorizontal: 14,
@@ -977,5 +1095,24 @@ const styles = StyleSheet.create({
   },
   relatedContainer: {
     marginTop: 20,
+  },
+  imageModalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  imageModalCloseBtn: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+    zIndex: 999,
+    padding: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 20,
+  },
+  modalFullImage: {
+    width: width,
+    height: height * 0.75,
   },
 });

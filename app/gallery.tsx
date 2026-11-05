@@ -18,6 +18,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { BrandColors, Shadows } from "@/constants/theme";
 import { apiClient, getFullMediaUrl, GalleryAlbum } from "@/_services/api";
+import StarHeader from "@/components/StarHeader";
+import { StarPageLoader } from "@/components/StarBrandLoader";
 
 const { width } = Dimensions.get("window");
 const IMAGE_SIZE = (width - 44) / 3;
@@ -79,19 +81,16 @@ export default function GalleryScreen() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor={BrandColors.primaryDark} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.navRow}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color="#FFF" />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>फोटो गैलरी (PHOTO GALLERY)</Text>
-            <Text style={styles.headerSubtitle}>स्टार न्यूज़ नेटवर्क छायाचित्र संग्रह</Text>
-          </View>
-        </View>
+      {/* Unified Star Header */}
+      <StarHeader
+        variant="compact"
+        title="फोटो गैलरी (PHOTO GALLERY)"
+        subtitle="स्टार न्यूज़ नेटवर्क छायाचित्र संग्रह • पन्ना"
+        onBackPress={() => router.back()}
+      />
 
-        {/* Search Field */}
+      {/* Search Field */}
+      <View style={styles.searchBarWrap}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={17} color={BrandColors.textMuted} />
           <TextInput
@@ -111,10 +110,7 @@ export default function GalleryScreen() {
 
       {/* Gallery List */}
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={BrandColors.primary} />
-          <Text style={styles.loadingText}>गैलरी लोड हो रही है...</Text>
-        </View>
+        <StarPageLoader message="फोटो गैलरी लोड हो रही है..." onRetry={fetchGallery} />
       ) : (
         <FlatList
           data={filteredAlbums}
@@ -241,6 +237,14 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: BrandColors.primaryDark,
+  },
+  searchBarWrap: {
+    backgroundColor: BrandColors.primaryDark,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    ...Shadows.sm,
   },
   header: {
     backgroundColor: BrandColors.primaryDark,
